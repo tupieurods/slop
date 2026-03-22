@@ -19,20 +19,22 @@ jobs:
       - name: Publish self-contained
         run: dotnet publish src/SlopChat/SlopChat.csproj -c Release -r linux-x64 --self-contained -o publish
 
-      - name: Deploy to VPS
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: "publish/*"
-          target: "/opt/slopchat"
-          strip_components: 1
+      - name: Pack artifact
+        run: tar -czf slopchat.tar.gz -C publish .
 
-      - name: Restart service
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: sudo systemctl restart slopchat
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Deploy to droplet
+        run: |
+          doctl compute ssh ${{ secrets.DROPLET_NAME }} --access-token ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }} -- bash -c "cat > /tmp/slopchat.tar.gz" < slopchat.tar.gz
+          doctl compute ssh ${{ secrets.DROPLET_NAME }} --access-token ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }} -- bash -c "
+            sudo systemctl stop slopchat || true
+            sudo mkdir -p /opt/slopchat
+            sudo tar -xzf /tmp/slopchat.tar.gz -C /opt/slopchat
+            sudo chmod +x /opt/slopchat/SlopChat
+            rm /tmp/slopchat.tar.gz
+            sudo systemctl start slopchat
+          "
