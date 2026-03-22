@@ -1,0 +1,14 @@
+[Unit]
+Description=SlopChat Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/slopchat
+ExecStart=/opt/slopchat/SlopChat
+Restart=always
+RestartSec=5
+EnvironmentFile=/opt/slopchat/.env
+
+[Install]
+WantedBy=multi-user.target

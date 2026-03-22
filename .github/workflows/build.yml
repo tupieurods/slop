@@ -1,0 +1,34 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+          dotnet-quality: "preview"
+
+      - name: Restore
+        run: dotnet restore src/SlopChat/SlopChat.csproj
+
+      - name: Build
+        run: dotnet build src/SlopChat/SlopChat.csproj --no-restore -c Release
+
+      - name: Publish
+        run: dotnet publish src/SlopChat/SlopChat.csproj --no-restore -c Release -o publish
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: slopchat
+          path: publish/

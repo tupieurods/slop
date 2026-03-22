@@ -1,0 +1,84 @@
+using System.Collections.Concurrent;
+using SlopChat.Configuration;
+using SlopChat.Models;
+
+namespace SlopChat.Services
+{
+    public class ConversationManager
+    {
+        private const int MaxHistoryPairs = 50;
+
+        private readonly ConcurrentDictionary<long, List<ChatMessage>> _histories = new();
+        private readonly BotOptions _options;
+        private readonly object _lock = new();
+
+        public ConversationManager(BotOptions options)
+        {
+            _options = options;
+        }
+
+        public List<ChatMessage> GetHistory(long chatId)
+        {
+            lock(_lock)
+            {
+                return _histories.GetOrAdd(chatId, _ => CreateInitialHistory());
+            }
+        }
+
+        public void AddUserMessage(long chatId, string content)
+        {
+            lock(_lock)
+            {
+                List<ChatMessage> history = GetHistory(chatId);
+                history.Add(ChatMessage.User(content));
+                TrimHistory(history);
+            }
+        }
+
+        public void AddAssistantMessage(long chatId, string content)
+        {
+            lock(_lock)
+            {
+                List<ChatMessage> history = GetHistory(chatId);
+                history.Add(ChatMessage.Assistant(content));
+                TrimHistory(history);
+            }
+        }
+
+        public List<ChatMessage> GetSnapshot(long chatId)
+        {
+            lock(_lock)
+            {
+                List<ChatMessage> history = GetHistory(chatId);
+                return new List<ChatMessage>(history);
+            }
+        }
+
+        public void Reset(long chatId)
+        {
+            lock(_lock)
+            {
+                _histories[chatId] = CreateInitialHistory();
+            }
+        }
+
+        private List<ChatMessage> CreateInitialHistory()
+        {
+            return new List<ChatMessage> { ChatMessage.System(_options.SystemPrompt) };
+        }
+
+        private static void TrimHistory(List<ChatMessage> history)
+        {
+            int maxMessages = 1 + (MaxHistoryPairs * 2);
+            if(history.Count <= maxMessages)
+            {
+                return;
+            }
+
+            ChatMessage systemMessage = history[0];
+            int removeCount = history.Count - maxMessages;
+            history.RemoveRange(1, removeCount);
+            history[0] = systemMessage;
+        }
+    }
+}
