@@ -1,68 +1,64 @@
-using System.Net.Http.Json;
+using System.ClientModel;
 using Microsoft.Extensions.Logging;
-using SlopChat.Models;
+using OpenAI;
+using OpenAI.Chat;
+using OpenAI.Models;
 
 namespace SlopChat.Services
 {
   public class OpenRouterClient
   {
-    private readonly HttpClient _httpClient;
+    private readonly ChatClient _chatClient;
+    private readonly OpenAIClient _openAiClient;
     private readonly ILogger<OpenRouterClient> _logger;
 
-    public OpenRouterClient(HttpClient httpClient, ILogger<OpenRouterClient> logger)
+    public OpenRouterClient(string apiKey, string defaultModel, ILogger<OpenRouterClient> logger)
     {
-      _httpClient = httpClient;
       _logger = logger;
-    }
 
-    public async Task<string> GetCompletionAsync(List<ChatMessage> messages, string model, CancellationToken ct)
-    {
-      OpenRouterRequest request = new()
+      OpenAIClientOptions options = new()
       {
-        Model = model,
-        Messages = messages
+        Endpoint = new Uri("https://openrouter.ai/api/v1")
       };
 
-      HttpResponseMessage response = await _httpClient.PostAsJsonAsync("chat/completions", request, ct);
-
-      if(!response.IsSuccessStatusCode)
-      {
-        string errorBody = await response.Content.ReadAsStringAsync(ct);
-        _logger.LogError("OpenRouter API error {StatusCode}: {Body}", response.StatusCode, errorBody);
-        return $"OpenRouter API error: {response.StatusCode}";
-      }
-
-      OpenRouterResponse? result = await response.Content.ReadFromJsonAsync<OpenRouterResponse>(ct);
-
-      if(result?.Choices is { Count: > 0 })
-      {
-        return result.Choices[0].Message.Content;
-      }
-
-      _logger.LogWarning("OpenRouter returned empty choices");
-      return "No response from the model.";
+      _openAiClient = new OpenAIClient(new ApiKeyCredential(apiKey), options);
+      _chatClient = _openAiClient.GetChatClient(defaultModel);
     }
 
-    public async Task<List<OpenRouterModel>> GetModelsAsync(CancellationToken ct)
+    public async Task<string> GetCompletionAsync(List<ChatMessage> messages, CancellationToken ct)
     {
       try
       {
-        HttpResponseMessage response = await _httpClient.GetAsync("models", ct);
+        ChatCompletion completion = await _chatClient.CompleteChatAsync(messages, cancellationToken: ct);
+        string content = completion.Content[0].Text;
+        return content;
+      }
+      catch(Exception ex)
+      {
+        _logger.LogError(ex, "OpenRouter API error");
+        return $"OpenRouter API error: {ex.Message}";
+      }
+    }
 
-        if(!response.IsSuccessStatusCode)
+    public async Task<List<string>> GetModelsAsync(CancellationToken ct)
+    {
+      try
+      {
+        OpenAIModelClient modelClient = _openAiClient.GetOpenAIModelClient();
+        ClientResult<OpenAIModelCollection> response = await modelClient.GetModelsAsync(cancellationToken: ct);
+        List<string> result = new();
+
+        foreach(var model in response.Value)
         {
-          string errorBody = await response.Content.ReadAsStringAsync(ct);
-          _logger.LogError("OpenRouter models API error {StatusCode}: {Body}", response.StatusCode, errorBody);
-          return new List<OpenRouterModel>();
+          result.Add(model.Id);
         }
 
-        OpenRouterModelsResponse? result = await response.Content.ReadFromJsonAsync<OpenRouterModelsResponse>(ct);
-        return result?.Data ?? new List<OpenRouterModel>();
+        return result;
       }
       catch(Exception ex)
       {
         _logger.LogError(ex, "Failed to fetch models from OpenRouter");
-        return new List<OpenRouterModel>();
+        return new List<string>();
       }
     }
   }

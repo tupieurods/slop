@@ -1,6 +1,6 @@
-using System.Net.Http.Headers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using SlopChat.Configuration;
 using SlopChat.Handlers;
 using SlopChat.Services;
@@ -35,13 +35,10 @@ namespace SlopChat
           services.AddSingleton<MessageRouter>();
           services.AddSingleton<SlopMessageHandler>();
           services.AddSingleton<CommandHandler>();
-
-          services.AddHttpClient<OpenRouterClient>(client =>
-          {
-            client.BaseAddress = new Uri("https://openrouter.ai/api/v1/");
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", options.OpenRouterKey);
-            client.DefaultRequestHeaders.Add("X-Title", "SlopChat");
-          });
+          services.AddSingleton(sp => new OpenRouterClient(
+            options.OpenRouterKey,
+            options.DefaultModel,
+            sp.GetRequiredService<ILogger<OpenRouterClient>>()));
 
           services.AddHostedService<TelegramBotService>();
         })

@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
+using OpenAI.Chat;
 using SlopChat.Configuration;
-using SlopChat.Models;
 
 namespace SlopChat.Services
 {
@@ -29,7 +29,7 @@ namespace SlopChat.Services
       lock(_lock)
       {
         var history = GetHistory(chatId);
-        history.Add(ChatMessage.User(content));
+        history.Add(ChatMessage.CreateUserMessage(content));
         TrimHistory(history);
       }
     }
@@ -39,7 +39,7 @@ namespace SlopChat.Services
       lock(_lock)
       {
         var history = GetHistory(chatId);
-        history.Add(ChatMessage.Assistant(content));
+        history.Add(ChatMessage.CreateAssistantMessage(content));
         TrimHistory(history);
       }
     }
@@ -61,7 +61,7 @@ namespace SlopChat.Services
       }
     }
 
-    private List<ChatMessage> CreateInitialHistory() => new() { ChatMessage.System(_options.SystemPrompt) };
+    private List<ChatMessage> CreateInitialHistory() => new() { ChatMessage.CreateSystemMessage(_options.SystemPrompt) };
 
     private static void TrimHistory(List<ChatMessage> history)
     {

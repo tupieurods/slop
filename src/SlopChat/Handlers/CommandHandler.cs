@@ -1,7 +1,6 @@
 using System.Text;
 using Microsoft.Extensions.Logging;
 using SlopChat.Configuration;
-using SlopChat.Models;
 using SlopChat.Services;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -64,9 +63,9 @@ namespace SlopChat.Handlers
       sb.AppendLine("Available models:");
       sb.AppendLine();
 
-      foreach(OpenRouterModel model in models)
+      foreach(string modelId in models)
       {
-        sb.AppendLine($"  {model.Id}");
+        sb.AppendLine($"  {modelId}");
       }
 
       string text = sb.ToString();

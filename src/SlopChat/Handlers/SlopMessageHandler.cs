@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using SlopChat.Configuration;
 using SlopChat.Services;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -10,18 +9,15 @@ namespace SlopChat.Handlers
   {
     private readonly OpenRouterClient _openRouter;
     private readonly ConversationManager _conversationManager;
-    private readonly BotOptions _options;
     private readonly ILogger<SlopMessageHandler> _logger;
 
     public SlopMessageHandler(
       OpenRouterClient openRouter,
       ConversationManager conversationManager,
-      BotOptions options,
       ILogger<SlopMessageHandler> logger)
     {
       _openRouter = openRouter;
       _conversationManager = conversationManager;
-      _options = options;
       _logger = logger;
     }
 
@@ -34,7 +30,7 @@ namespace SlopChat.Handlers
 
       try
       {
-        string response = await _openRouter.GetCompletionAsync(history, _options.DefaultModel, ct);
+        string response = await _openRouter.GetCompletionAsync(history, ct);
         _conversationManager.AddAssistantMessage(chatId, response);
         await SendChunkedAsync(bot, chatId, response, message.MessageId, ct);
       }
