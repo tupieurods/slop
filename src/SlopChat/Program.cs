@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using NLog.Extensions.Logging;
 using SlopChat.Configuration;
 using SlopChat.Handlers;
 using SlopChat.Services;
@@ -27,6 +28,11 @@ namespace SlopChat
       }
 
       IHost host = Host.CreateDefaultBuilder(args)
+        .ConfigureLogging(logging =>
+        {
+          logging.ClearProviders();
+          logging.AddNLog();
+        })
         .ConfigureServices(services =>
         {
           services.AddSingleton(options);
