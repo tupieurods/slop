@@ -1,21 +1,23 @@
 # Code Style & Conventions
 
-Source: `resharper_settings.DotSettings` (ReSharper shared settings).
+Source: `resharper_settings.DotSettings` + user formatting preferences.
 
-## Project setup
-- Nullable reference types: enabled
-- Implicit usings: enabled
-- Namespace style: **block-scoped** (`namespace Foo { ... }`)
+## Indentation
+- **2 spaces**, no tabs.
 
 ## `var` keyword
-- **Never** use `var` for built-in or simple types — always use explicit type names.
+- Use `var` when type is **obvious from context** (e.g., `var history = GetHistory(chatId)`).
+- Use **explicit types** for built-in types or when the type isn't clear from the right-hand side.
 
 ## Braces
 - **Required** for all `if`, `for`, `foreach`, `while` bodies.
-- Embedded statements must always be on a **new line** (never on same line as keyword).
+- Embedded statements on a **new line** (never same line as keyword).
 
 ## Method / operator bodies
-- Prefer **expression body** (`=>`) for methods and operators when possible.
+- Prefer **expression body** (`=>`) for single-expression methods.
+
+## Namespace style
+- **Block-scoped** (`namespace Foo { ... }`), not file-scoped.
 
 ## Spacing
 - **No space** before parentheses in control flow keywords: `if(`, `for(`, `foreach(`, `while(`, `switch(`, `catch(`, `lock(`, `using(`, `fixed(`
@@ -29,11 +31,7 @@ Source: `resharper_settings.DotSettings` (ReSharper shared settings).
 - No blank lines after block statements; no blank lines around fields
 
 ## Attributes
-- Always on a **separate line** — never on the same line as the member.
-
-## Alignment
-- Align multiline extends lists and multiline parameter lists
-- Do **not** align multiline binary expression chains
+- Always on a **separate line**.
 
 ## Naming (C#)
 | Element | Convention |
@@ -44,12 +42,14 @@ Source: `resharper_settings.DotSettings` (ReSharper shared settings).
 | Local variables, parameters | `camelCase` |
 
 ## Member ordering (within a class)
-1. Public delegates
-2. Public enums
-3. *(grouped by access)*: non-static fields → properties/indexers
-4. Static fields and constants
-5. Events
-6. Constructors (static first)
-7. Interface implementations (grouped by interface)
-8. All other members
-9. Nested types
+1. Instance readonly fields
+2. Static readonly fields and constants
+3. Properties and indexers
+4. Constructors
+5. Public methods
+6. Private methods
+7. Nested types
+
+## Other
+- Remove unused `using` directives.
+- Prefer positional arguments over named when meaning is clear.
