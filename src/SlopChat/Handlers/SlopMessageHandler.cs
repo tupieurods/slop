@@ -26,11 +26,12 @@ public class SlopMessageHandler
       long chatId = message.Chat.Id;
 
       _conversationManager.AddUserMessage(chatId, userText);
+      await _conversationManager.CompactIfNeededAsync(chatId, ct);
       var history = _conversationManager.GetSnapshot(chatId);
 
       try
       {
-        string response = await _openRouter.GetCompletionAsync(history, ct);
+        string response = await _openRouter.GetCompletionAsync(history, _conversationManager.GetModel(chatId), ct);
         _conversationManager.AddAssistantMessage(chatId, response);
         await SendChunkedAsync(bot, chatId, response, message.MessageId, ct);
       }

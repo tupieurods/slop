@@ -53,8 +53,7 @@ public class BotOptions
         TelegramToken = Environment.GetEnvironmentVariable("SLOP_TELEGRAM_TOKEN") ?? string.Empty,
         OpenRouterKey = Environment.GetEnvironmentVariable("SLOP_OPENROUTER_KEY") ?? string.Empty,
         AdminId = long.TryParse(Environment.GetEnvironmentVariable("SLOP_ADMIN_ID"), out long adminId) ? adminId : 0,
-        AllowedChats = allowedChats,
-        DefaultModel = Environment.GetEnvironmentVariable("SLOP_DEFAULT_MODEL") ?? "google/gemini-2.5-flash-preview"
+        AllowedChats = allowedChats
       };
     }
   }

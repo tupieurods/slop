@@ -26,7 +26,6 @@ jobs:
           SLOP_OPENROUTER_KEY=${{ secrets.SLOP_OPENROUTER_KEY }}
           SLOP_ADMIN_ID=${{ secrets.SLOP_ADMIN_ID }}
           SLOP_ALLOWED_CHATS=${{ secrets.SLOP_ALLOWED_CHATS }}
-          SLOP_DEFAULT_MODEL=${{ secrets.SLOP_DEFAULT_MODEL }}
           EOF
 
       - name: Pack artifact

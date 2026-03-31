@@ -43,7 +43,6 @@ internal class Program
           services.AddSingleton<CommandHandler>();
           services.AddSingleton(sp => new OpenRouterClient(
             options.OpenRouterKey,
-            options.DefaultModel,
             sp.GetRequiredService<ILogger<OpenRouterClient>>()));
 
           services.AddHostedService<TelegramBotService>();

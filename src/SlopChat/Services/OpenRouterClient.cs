@@ -8,11 +8,10 @@ namespace SlopChat.Services;
 
 public class OpenRouterClient
 {
-    private readonly ChatClient _chatClient;
     private readonly OpenAIClient _openAiClient;
     private readonly ILogger<OpenRouterClient> _logger;
 
-    public OpenRouterClient(string apiKey, string defaultModel, ILogger<OpenRouterClient> logger)
+    public OpenRouterClient(string apiKey, ILogger<OpenRouterClient> logger)
     {
       _logger = logger;
 
@@ -22,14 +21,14 @@ public class OpenRouterClient
       };
 
       _openAiClient = new OpenAIClient(new ApiKeyCredential(apiKey), options);
-      _chatClient = _openAiClient.GetChatClient(defaultModel);
     }
 
-    public async Task<string> GetCompletionAsync(List<ChatMessage> messages, CancellationToken ct)
+    public async Task<string> GetCompletionAsync(List<ChatMessage> messages, string model, CancellationToken ct)
     {
       try
       {
-        ChatCompletion completion = await _chatClient.CompleteChatAsync(messages, cancellationToken: ct);
+        ChatClient chatClient = _openAiClient.GetChatClient(model);
+        ChatCompletion completion = await chatClient.CompleteChatAsync(messages, cancellationToken: ct);
         string content = completion.Content[0].Text;
         return content;
       }

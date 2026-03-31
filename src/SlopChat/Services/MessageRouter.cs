@@ -64,6 +64,22 @@ public class MessageRouter
         return;
       }
 
+      if(text.StartsWith("!set_model", StringComparison.OrdinalIgnoreCase))
+      {
+        if(!IsAdmin(message))
+        {
+          return;
+        }
+
+        string modelName = text["!set_model".Length..].Trim();
+        if(!string.IsNullOrEmpty(modelName))
+        {
+          await _commandHandler.HandleSetModelAsync(bot, message, modelName, ct);
+        }
+
+        return;
+      }
+
       string? userText = TryStripSlopPrefix(text);
       if(userText is not null)
       {
