@@ -2,11 +2,11 @@ using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 
-namespace SlopTools
+namespace SlopTools;
+
+internal class Program
 {
-  internal class Program
-  {
-    private static async Task Main(string[] args)
+  private static async Task Main(string[] args)
     {
       Console.Write("Enter bot token: ");
       string? token = Console.ReadLine()?.Trim();
@@ -145,4 +145,3 @@ namespace SlopTools
       Console.WriteLine($"  Type:    {chat.Type}");
     }
   }
-}

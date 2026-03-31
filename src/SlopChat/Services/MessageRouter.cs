@@ -5,10 +5,10 @@ using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 
-namespace SlopChat.Services
+namespace SlopChat.Services;
+
+public class MessageRouter
 {
-  public class MessageRouter
-  {
     private readonly BotOptions _options;
     private readonly SlopMessageHandler _slopHandler;
     private readonly CommandHandler _commandHandler;
@@ -106,4 +106,3 @@ namespace SlopChat.Services
       return null;
     }
   }
-}

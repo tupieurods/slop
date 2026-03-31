@@ -4,10 +4,10 @@ using OpenAI;
 using OpenAI.Chat;
 using OpenAI.Models;
 
-namespace SlopChat.Services
+namespace SlopChat.Services;
+
+public class OpenRouterClient
 {
-  public class OpenRouterClient
-  {
     private readonly ChatClient _chatClient;
     private readonly OpenAIClient _openAiClient;
     private readonly ILogger<OpenRouterClient> _logger;
@@ -62,4 +62,3 @@ namespace SlopChat.Services
       }
     }
   }
-}

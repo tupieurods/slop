@@ -7,11 +7,11 @@ using SlopChat.Handlers;
 using SlopChat.Services;
 using Telegram.Bot;
 
-namespace SlopChat
+namespace SlopChat;
+
+internal class Program
 {
-  internal class Program
-  {
-    private static async Task Main(string[] args)
+  private static async Task Main(string[] args)
     {
       BotOptions options = BotOptions.FromEnvironment();
 
@@ -53,4 +53,3 @@ namespace SlopChat
       await host.RunAsync();
     }
   }
-}

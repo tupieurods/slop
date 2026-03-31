@@ -2,10 +2,10 @@ using System.Collections.Concurrent;
 using OpenAI.Chat;
 using SlopChat.Configuration;
 
-namespace SlopChat.Services
+namespace SlopChat.Services;
+
+public class ConversationManager
 {
-  public class ConversationManager
-  {
     private readonly ConcurrentDictionary<long, List<ChatMessage>> _histories = new();
     private readonly BotOptions _options;
     private readonly object _lock = new();
@@ -77,4 +77,3 @@ namespace SlopChat.Services
       history[0] = systemMessage;
     }
   }
-}

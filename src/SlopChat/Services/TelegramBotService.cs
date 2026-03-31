@@ -5,10 +5,10 @@ using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 
-namespace SlopChat.Services
+namespace SlopChat.Services;
+
+public class TelegramBotService: IHostedService
 {
-  public class TelegramBotService: IHostedService
-  {
     private readonly TelegramBotClient _bot;
     private readonly MessageRouter _router;
     private readonly ILogger<TelegramBotService> _logger;
@@ -74,4 +74,3 @@ namespace SlopChat.Services
       return Task.CompletedTask;
     }
   }
-}

@@ -1,3 +1,10 @@
 # Telegram AI chatbot
 
-See `.claude/rules/` for all project rules.
+## Rules
+
+| File | Purpose |
+|---|---|
+| `.claude/rules/developer.md` | Coding standards, .NET 10 / C# 14, patterns |
+| `.claude/rules/code_style.md` | Formatting, naming, member ordering |
+| `.claude/rules/agents.md` | Serena usage + what every code-changing agent must read |
+| `.claude/rules/project_structure.md` | Solution layout, projects, deployment |

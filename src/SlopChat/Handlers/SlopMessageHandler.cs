@@ -3,10 +3,10 @@ using SlopChat.Services;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 
-namespace SlopChat.Handlers
+namespace SlopChat.Handlers;
+
+public class SlopMessageHandler
 {
-  public class SlopMessageHandler
-  {
     private readonly OpenRouterClient _openRouter;
     private readonly ConversationManager _conversationManager;
     private readonly ILogger<SlopMessageHandler> _logger;
@@ -76,4 +76,3 @@ namespace SlopChat.Handlers
       }
     }
   }
-}

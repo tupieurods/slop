@@ -1,7 +1,7 @@
-namespace SlopChat.Configuration
+namespace SlopChat.Configuration;
+
+public class BotOptions
 {
-  public class BotOptions
-  {
     public string TelegramToken { get; set; } = string.Empty;
 
     public string OpenRouterKey { get; set; } = string.Empty;
@@ -58,4 +58,3 @@ namespace SlopChat.Configuration
       };
     }
   }
-}
