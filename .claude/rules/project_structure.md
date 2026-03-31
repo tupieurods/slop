@@ -12,34 +12,18 @@
 | `SlopChat` | `src/SlopChat/SlopChat.csproj` | Main Telegram bot (console app, entry point) |
 | `SlopTools` | `src/SlopTools/SlopTools.csproj` | CLI utility for getting Telegram chat IDs |
 
-## SlopChat Layout
+## SlopChat Folders
 
-```
-src/SlopChat/
-├── SlopChat.slnx
-├── SlopChat.csproj
-├── Program.cs                        # Host setup, DI registration
-├── nlog.config
-├── Configuration/
-│   └── BotOptions.cs                 # Config from SLOP_* env vars
-├── Services/
-│   ├── TelegramBotService.cs         # IHostedService, long-polling
-│   ├── MessageRouter.cs              # Access control + message routing
-│   ├── ConversationManager.cs        # Per-chat in-memory history (capped at 50 pairs)
-│   └── OpenRouterClient.cs           # OpenRouter API client (via OpenAI SDK)
-├── Handlers/
-│   ├── SlopMessageHandler.cs         # "slop"/"слоп" prefix → LLM → reply
-│   └── CommandHandler.cs             # !reset, !model, !models commands
-└── Models/                           # DTOs
-```
+| Folder | Purpose |
+|---|---|
+| `Configuration/` | Config loaded from `SLOP_*` env vars |
+| `Services/` | Hosted service, message routing, conversation history, OpenRouter API client |
+| `Handlers/` | Prefix-triggered LLM handler and bot commands (`!reset`, `!model`, `!models`) |
+| `Models/` | DTOs |
 
-## SlopTools Layout
+## SlopTools
 
-```
-src/SlopTools/
-├── SlopTools.csproj
-└── Program.cs                        # Interactive CLI for Telegram chat ID lookup
-```
+Single-file CLI utility for Telegram chat ID lookup (`Program.cs`).
 
 ## Deployment
 
