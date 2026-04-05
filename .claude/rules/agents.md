@@ -15,4 +15,4 @@ Before making any code changes, **always read**:
 1. `.claude/rules/developer.md` — coding standards, target platform (.NET 10 / C# 14), patterns to follow and avoid
 2. `.claude/rules/code_style.md` — formatting, naming conventions, member ordering
 
-After changes, always run `dotnet build src/SlopChat/SlopChat.slnx` to verify compilation.
+After changes, always run `dotnet build src/SlopChat.slnx` to verify compilation.

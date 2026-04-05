@@ -29,6 +29,7 @@ Source: `resharper_settings.DotSettings` + user formatting preferences.
 - Wrap **before** binary operator
 - Max **1 blank line** in code or declarations
 - No blank lines after block statements; no blank lines around fields
+- **Closing parenthesis on its own line** for multi-line method calls/declarations (closing `)` or `);` goes on a new line, aligned with the call start)
 
 ## Attributes
 - Always on a **separate line**.

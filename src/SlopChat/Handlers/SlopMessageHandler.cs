@@ -14,7 +14,8 @@ public class SlopMessageHandler
     public SlopMessageHandler(
       OpenRouterClient openRouter,
       ConversationManager conversationManager,
-      ILogger<SlopMessageHandler> logger)
+      ILogger<SlopMessageHandler> logger
+    )
     {
       _openRouter = openRouter;
       _conversationManager = conversationManager;
@@ -38,8 +39,12 @@ public class SlopMessageHandler
       catch(Exception ex)
       {
         _logger.LogError(ex, "Error getting completion for chat {ChatId}", chatId);
-        await bot.SendMessage(chatId, "Something went wrong while getting a response.", replyParameters: new ReplyParameters { MessageId = message.MessageId },
-          cancellationToken: ct);
+        await bot.SendMessage(
+          chatId,
+          "Something went wrong while getting a response.",
+          replyParameters: new ReplyParameters { MessageId = message.MessageId },
+          cancellationToken: ct
+        );
       }
     }
 

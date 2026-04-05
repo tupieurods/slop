@@ -17,7 +17,8 @@ public class TelegramBotService: IHostedService
     public TelegramBotService(
       TelegramBotClient bot,
       MessageRouter router,
-      ILogger<TelegramBotService> logger)
+      ILogger<TelegramBotService> logger
+    )
     {
       _bot = bot;
       _router = router;
@@ -37,7 +38,8 @@ public class TelegramBotService: IHostedService
         HandleUpdateAsync,
         HandleErrorAsync,
         receiverOptions,
-        _cts.Token);
+        _cts.Token
+      );
 
       _logger.LogInformation("Telegram bot started receiving updates");
       return Task.CompletedTask;

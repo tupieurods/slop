@@ -19,7 +19,8 @@ public class MessageRouter
       BotOptions options,
       SlopMessageHandler slopHandler,
       CommandHandler commandHandler,
-      ILogger<MessageRouter> logger)
+      ILogger<MessageRouter> logger
+    )
     {
       _options = options;
       _slopHandler = slopHandler;

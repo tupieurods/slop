@@ -30,6 +30,21 @@ Derived from `resharper_settings.DotSettings`, refined by user formatting prefer
 - Max **1 blank line** in code or declarations
 - No blank lines after block statements
 - No blank lines around fields
+- **Closing parenthesis on its own line** for multi-line method calls / declarations:
+  ```csharp
+  // ✅ Correct
+  await bot.SendMessage(
+    chatId,
+    text,
+    cancellationToken: ct
+  );
+
+  // ❌ Wrong
+  await bot.SendMessage(
+    chatId,
+    text,
+    cancellationToken: ct);
+  ```
 
 ## Attributes
 - Attributes are always placed on a **separate line** — never on the same line as the member.

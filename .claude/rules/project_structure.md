@@ -2,8 +2,8 @@
 
 ## Solution
 
-- **Solution file**: `src/SlopChat/SlopChat.slnx` (`.slnx` format — new Visual Studio solution format, not `.sln`)
-- Build: `dotnet build src/SlopChat/SlopChat.slnx`
+- **Solution file**: `src/SlopChat.slnx` (`.slnx` format — new Visual Studio solution format, not `.sln`)
+- Build: `dotnet build src/SlopChat.slnx`
 
 ## Projects
 

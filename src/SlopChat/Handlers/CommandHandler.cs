@@ -4,10 +4,10 @@ using SlopChat.Services;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 
-namespace SlopChat.Handlers;
-
-public class CommandHandler
+namespace SlopChat.Handlers
 {
+  public class CommandHandler
+  {
     private readonly OpenRouterClient _openRouter;
     private readonly ConversationManager _conversationManager;
     private readonly ILogger<CommandHandler> _logger;
@@ -15,7 +15,8 @@ public class CommandHandler
     public CommandHandler(
       OpenRouterClient openRouter,
       ConversationManager conversationManager,
-      ILogger<CommandHandler> logger)
+      ILogger<CommandHandler> logger
+    )
     {
       _openRouter = openRouter;
       _conversationManager = conversationManager;
@@ -29,7 +30,8 @@ public class CommandHandler
         message.Chat.Id,
         "Context has been reset.",
         replyParameters: new ReplyParameters { MessageId = message.MessageId },
-        cancellationToken: ct);
+        cancellationToken: ct
+      );
     }
 
     public async Task HandleModelAsync(ITelegramBotClient bot, Message message, CancellationToken ct)
@@ -38,7 +40,8 @@ public class CommandHandler
         message.Chat.Id,
         $"Current model: {_conversationManager.GetModel(message.Chat.Id)}",
         replyParameters: new ReplyParameters { MessageId = message.MessageId },
-        cancellationToken: ct);
+        cancellationToken: ct
+      );
     }
 
     public async Task HandleSetModelAsync(ITelegramBotClient bot, Message message, string modelName, CancellationToken ct)
@@ -50,7 +53,8 @@ public class CommandHandler
         message.Chat.Id,
         $"Model set to: {modelName}\nContext has been reset.",
         replyParameters: new ReplyParameters { MessageId = message.MessageId },
-        cancellationToken: ct);
+        cancellationToken: ct
+      );
     }
 
     public async Task HandleModelsAsync(ITelegramBotClient bot, Message message, CancellationToken ct)
@@ -63,7 +67,8 @@ public class CommandHandler
           message.Chat.Id,
           "Failed to fetch models list.",
           replyParameters: new ReplyParameters { MessageId = message.MessageId },
-          cancellationToken: ct);
+          cancellationToken: ct
+        );
         return;
       }
 
@@ -84,7 +89,8 @@ public class CommandHandler
           message.Chat.Id,
           text,
           replyParameters: new ReplyParameters { MessageId = message.MessageId },
-          cancellationToken: ct);
+          cancellationToken: ct
+        );
         return;
       }
 
@@ -112,3 +118,4 @@ public class CommandHandler
       }
     }
   }
+}
