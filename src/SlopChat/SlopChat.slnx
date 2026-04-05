@@ -1,4 +1,0 @@
-<Solution>
-  <Project Path="SlopChat.csproj" />
-  <Project Path="..\SlopTools\SlopTools.csproj" />
-</Solution>
