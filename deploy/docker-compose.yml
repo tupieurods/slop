@@ -1,0 +1,12 @@
+services:
+  slopchat:
+    image: ${DOCKERHUB_USERNAME}/slopchat:latest
+    container_name: slopchat
+    restart: unless-stopped
+    environment:
+      - SLOP_TELEGRAM_TOKEN=${SLOP_TELEGRAM_TOKEN}
+      - SLOP_OPENROUTER_KEY=${SLOP_OPENROUTER_KEY}
+      - SLOP_ADMIN_ID=${SLOP_ADMIN_ID}
+      - SLOP_ALLOWED_CHATS=${SLOP_ALLOWED_CHATS}
+    volumes:
+      - /opt/slopchat/logs:/app/logs

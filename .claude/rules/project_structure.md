@@ -27,6 +27,7 @@ Single-file CLI utility for Telegram chat ID lookup (`Program.cs`).
 
 ## Deployment
 
-- GitHub Actions: `build.yml` (CI), `deploy.yml` (publish + SCP + systemctl restart)
-- Target: DigitalOcean VPS, systemd service (`deploy/slopchat.service`)
-- Config via `EnvironmentFile=/opt/slopchat/.env` with `SLOP_*` environment variables
+- GitHub Actions: `build.yml` (CI), `deploy.yml` (Docker build + push to Docker Hub + SSH deploy)
+- Target: DigitalOcean VPS (Ubuntu 24.04), Docker Compose (`deploy/docker-compose.yml`)
+- Config via GitHub Actions secrets, injected as env vars at deploy time
+- See `deploy/SETUP.md` for first-time setup instructions

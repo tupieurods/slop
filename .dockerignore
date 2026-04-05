@@ -1,0 +1,14 @@
+**/.git
+**/.github
+**/.claude
+**/.vs
+**/.idea
+**/bin
+**/obj
+**/publish
+**/deploy
+**/*.md
+**/*.user
+**/LICENSE
+**/.dockerignore
+**/Dockerfile
