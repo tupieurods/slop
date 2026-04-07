@@ -8,3 +8,7 @@
 | `.claude/rules/code_style.md` | Formatting, naming, member ordering |
 | `.claude/rules/agents.md` | Serena usage + what every code-changing agent must read |
 | `.claude/rules/project_structure.md` | Solution layout, projects, deployment |
+
+## Important
+
+- **Never git commit automatically.** Always wait for explicit user confirmation before committing.

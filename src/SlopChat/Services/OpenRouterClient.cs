@@ -24,7 +24,11 @@ public class OpenRouterClient
     }
 
     public async Task<string> GetCompletionAsync(
-      List<ChatMessage> messages, string model, CancellationToken ct, IToolExecutor? toolExecutor = null)
+      List<ChatMessage> messages,
+      string model,
+      CancellationToken ct,
+      IToolExecutor? toolExecutor = null
+    )
     {
       try
       {

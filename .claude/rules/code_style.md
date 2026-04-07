@@ -24,6 +24,27 @@ Derived from `resharper_settings.DotSettings`, refined by user formatting prefer
 - **No space** before `:` in base type list: `class Foo: Bar`
 - **No space** after `operator` keyword
 
+## Method signatures & parameter lists
+- If a method signature fits on one line, keep it on one line.
+- If it doesn't fit, put **each parameter on its own line** with the closing `)` on its own line.
+- **Never** mix: e.g. opening `(` on a new line followed by all parameters crammed on one line is forbidden.
+  ```csharp
+  // ✅ All on one line
+  public void DoStuff(int a, string b, CancellationToken ct)
+
+  // ✅ Each parameter on its own line
+  public void DoStuff(
+    int a,
+    string b,
+    CancellationToken ct
+  )
+
+  // ❌ Mixed — parameters on new line but crammed together
+  public void DoStuff(
+    int a, string b, CancellationToken ct)
+  ```
+- The same rule applies to method **calls** and **constructor invocations**.
+
 ## Line length & wrapping
 - Wrap limit: **180 characters**
 - Wrap **before** binary operator (not after)

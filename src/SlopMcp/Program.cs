@@ -1,21 +1,29 @@
 using SlopMcp.Services;
 using SlopMcp.Tools;
 
-var builder = WebApplication.CreateBuilder(args);
+namespace SlopMcp;
 
-string searXngUrl = Environment.GetEnvironmentVariable("SLOP_SEARXNG_URL") ?? "http://searxng:8080";
-
-builder.Services.AddHttpClient<SearXngClient>(client =>
+internal class Program
 {
-  client.BaseAddress = new Uri(searXngUrl);
-  client.Timeout = TimeSpan.FromSeconds(15);
-});
+  private static void Main(string[] args)
+  {
+    var builder = WebApplication.CreateBuilder(args);
 
-builder.Services
-  .AddMcpServer()
-  .WithHttpTransport()
-  .WithTools<WebSearchTool>();
+    string searXngUrl = Environment.GetEnvironmentVariable("SLOP_SEARXNG_URL") ?? "http://searxng:8080";
 
-var app = builder.Build();
-app.MapMcp();
-app.Run();
+    builder.Services.AddHttpClient<SearXngClient>(client =>
+    {
+      client.BaseAddress = new Uri(searXngUrl);
+      client.Timeout = TimeSpan.FromSeconds(15);
+    });
+
+    builder.Services
+      .AddMcpServer()
+      .WithHttpTransport()
+      .WithTools<WebSearchTool>();
+
+    var app = builder.Build();
+    app.MapMcp();
+    app.Run();
+  }
+}
