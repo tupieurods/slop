@@ -18,13 +18,16 @@ jobs:
           dotnet-version: "10.0.x"
 
       - name: Restore
-        run: dotnet restore src/SlopChat/SlopChat.csproj
+        run: dotnet restore src/SlopChat.slnx
 
       - name: Build
-        run: dotnet build src/SlopChat/SlopChat.csproj --no-restore -c Release
+        run: dotnet build src/SlopChat.slnx --no-restore -c Release
 
-      - name: Publish
-        run: dotnet publish src/SlopChat/SlopChat.csproj --no-restore -c Release -o publish
+      - name: Publish SlopChat
+        run: dotnet publish src/SlopChat/SlopChat.csproj --no-restore -c Release -o publish/slopchat
+
+      - name: Publish SlopMcp
+        run: dotnet publish src/SlopMcp/SlopMcp.csproj --no-restore -c Release -o publish/slopmcp
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

@@ -6,7 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/slopchat
+  IMAGE_CHAT: ${{ secrets.DOCKERHUB_USERNAME }}/slopchat
+  IMAGE_MCP: ${{ secrets.DOCKERHUB_USERNAME }}/slopmcp
 
 jobs:
   deploy:
@@ -24,34 +25,46 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push
+      - name: Build and push SlopChat
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: Dockerfile
           push: true
           tags: |
-            ${{ env.IMAGE_NAME }}:${{ github.sha }}
-            ${{ github.ref == 'refs/heads/master' && format('{0}:latest', env.IMAGE_NAME) || '' }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            ${{ env.IMAGE_CHAT }}:${{ github.sha }}
+            ${{ github.ref == 'refs/heads/master' && format('{0}:latest', env.IMAGE_CHAT) || '' }}
+          cache-from: type=gha,scope=slopchat
+          cache-to: type=gha,mode=max,scope=slopchat
 
-      - name: Copy docker-compose to VPS
+      - name: Build and push SlopMcp
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.mcp
+          push: true
+          tags: |
+            ${{ env.IMAGE_MCP }}:${{ github.sha }}
+            ${{ github.ref == 'refs/heads/master' && format('{0}:latest', env.IMAGE_MCP) || '' }}
+          cache-from: type=gha,scope=slopmcp
+          cache-to: type=gha,mode=max,scope=slopmcp
+
+      - name: Copy deploy files to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "deploy/docker-compose.yml"
+          source: "deploy/"
           target: "/opt/slopchat"
           strip_components: 1
 
-      - name: Deploy container
+      - name: Deploy containers
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: IMAGE_NAME
           script_stop: true
           script: |
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
@@ -61,7 +74,7 @@ jobs:
             export SLOP_ADMIN_ID="${{ secrets.SLOP_ADMIN_ID }}"
             export SLOP_ALLOWED_CHATS="${{ secrets.SLOP_ALLOWED_CHATS }}"
             cd /opt/slopchat
-            sed -i "s|:latest|:${{ github.sha }}|" docker-compose.yml
+            sed -i "s|:latest|:${{ github.sha }}|g" docker-compose.yml
             docker compose pull
             docker compose up -d --remove-orphans
             docker image prune -f

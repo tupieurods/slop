@@ -9,16 +9,19 @@ public class SlopMessageHandler
 {
     private readonly OpenRouterClient _openRouter;
     private readonly ConversationManager _conversationManager;
+    private readonly IToolExecutor? _toolExecutor;
     private readonly ILogger<SlopMessageHandler> _logger;
 
     public SlopMessageHandler(
       OpenRouterClient openRouter,
       ConversationManager conversationManager,
+      IToolExecutor? toolExecutor,
       ILogger<SlopMessageHandler> logger
     )
     {
       _openRouter = openRouter;
       _conversationManager = conversationManager;
+      _toolExecutor = toolExecutor;
       _logger = logger;
     }
 
@@ -32,7 +35,7 @@ public class SlopMessageHandler
 
       try
       {
-        string response = await _openRouter.GetCompletionAsync(history, _conversationManager.GetModel(chatId), ct);
+        string response = await _openRouter.GetCompletionAsync(history, _conversationManager.GetModel(chatId), ct, _toolExecutor);
         _conversationManager.AddAssistantMessage(chatId, response);
         await SendChunkedAsync(bot, chatId, response, message.MessageId, ct);
       }

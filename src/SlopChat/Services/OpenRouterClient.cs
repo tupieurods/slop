@@ -23,14 +23,54 @@ public class OpenRouterClient
       _openAiClient = new OpenAIClient(new ApiKeyCredential(apiKey), options);
     }
 
-    public async Task<string> GetCompletionAsync(List<ChatMessage> messages, string model, CancellationToken ct)
+    public async Task<string> GetCompletionAsync(
+      List<ChatMessage> messages, string model, CancellationToken ct, IToolExecutor? toolExecutor = null)
     {
       try
       {
         ChatClient chatClient = _openAiClient.GetChatClient(model);
-        ChatCompletion completion = await chatClient.CompleteChatAsync(messages, cancellationToken: ct);
-        string content = completion.Content[0].Text;
-        return content;
+
+        ChatCompletionOptions? completionOptions = null;
+        if(toolExecutor is not null)
+        {
+          var tools = await toolExecutor.GetChatToolsAsync(ct);
+          if(tools.Count > 0)
+          {
+            completionOptions = new ChatCompletionOptions();
+            foreach(ChatTool tool in tools)
+            {
+              completionOptions.Tools.Add(tool);
+            }
+          }
+        }
+
+        var workingMessages = new List<ChatMessage>(messages);
+        const int maxIterations = 5;
+
+        for(int i = 0; i < maxIterations; i++)
+        {
+          ChatCompletion completion = completionOptions is not null
+            ? await chatClient.CompleteChatAsync(workingMessages, completionOptions, ct)
+            : await chatClient.CompleteChatAsync(workingMessages, cancellationToken: ct);
+
+          if(completion.FinishReason != ChatFinishReason.ToolCalls || toolExecutor is null)
+          {
+            return completion.Content[0].Text;
+          }
+
+          workingMessages.Add(ChatMessage.CreateAssistantMessage(completion));
+
+          foreach(ChatToolCall toolCall in completion.ToolCalls)
+          {
+            _logger.LogInformation("Executing tool {ToolName}", toolCall.FunctionName);
+            string result = await toolExecutor.ExecuteAsync(toolCall.FunctionName, toolCall.FunctionArguments, ct);
+            workingMessages.Add(ChatMessage.CreateToolMessage(toolCall.Id, result));
+          }
+        }
+
+        _logger.LogWarning("Reached max tool call iterations ({Max}), forcing final response", maxIterations);
+        ChatCompletion finalCompletion = await chatClient.CompleteChatAsync(workingMessages, cancellationToken: ct);
+        return finalCompletion.Content[0].Text;
       }
       catch(Exception ex)
       {

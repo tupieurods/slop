@@ -1,0 +1,13 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY src/SlopMcp/SlopMcp.csproj src/SlopMcp/
+RUN dotnet restore src/SlopMcp/SlopMcp.csproj
+
+COPY src/SlopMcp/ src/SlopMcp/
+RUN dotnet publish src/SlopMcp/SlopMcp.csproj -c Release -o /app
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+WORKDIR /app
+COPY --from=build /app .
+ENTRYPOINT ["dotnet", "SlopMcp.dll"]

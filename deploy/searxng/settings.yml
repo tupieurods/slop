@@ -1,0 +1,14 @@
+use_default_settings: true
+
+server:
+  secret_key: "slop-searxng-internal-key"
+  bind_address: "0.0.0.0"
+  port: 8080
+
+search:
+  formats:
+    - html
+    - json
+
+general:
+  enable_metrics: false

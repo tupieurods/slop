@@ -36,6 +36,8 @@ public class BotOptions
 
     public string DefaultModel = "google/gemini-3-flash-preview";
 
+    public string McpServerUrl { get; set; } = string.Empty;
+
     public static BotOptions FromEnvironment()
     {
       string allowedChatsRaw = Environment.GetEnvironmentVariable("SLOP_ALLOWED_CHATS") ?? string.Empty;
@@ -53,7 +55,8 @@ public class BotOptions
         TelegramToken = Environment.GetEnvironmentVariable("SLOP_TELEGRAM_TOKEN") ?? string.Empty,
         OpenRouterKey = Environment.GetEnvironmentVariable("SLOP_OPENROUTER_KEY") ?? string.Empty,
         AdminId = long.TryParse(Environment.GetEnvironmentVariable("SLOP_ADMIN_ID"), out long adminId) ? adminId : 0,
-        AllowedChats = allowedChats
+        AllowedChats = allowedChats,
+        McpServerUrl = Environment.GetEnvironmentVariable("SLOP_MCP_URL") ?? string.Empty
       };
     }
   }

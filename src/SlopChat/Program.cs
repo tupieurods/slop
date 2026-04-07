@@ -46,6 +46,14 @@ internal class Program
             sp.GetRequiredService<ILogger<OpenRouterClient>>()
           ));
 
+          if(!string.IsNullOrEmpty(options.McpServerUrl))
+          {
+            services.AddSingleton<IToolExecutor>(sp => new McpToolService(
+              options.McpServerUrl,
+              sp.GetRequiredService<ILoggerFactory>()
+            ));
+          }
+
           services.AddHostedService<TelegramBotService>();
         })
         .Build();

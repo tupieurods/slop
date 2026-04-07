@@ -1,12 +1,36 @@
 services:
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+      - ./searxng/limiter.toml:/etc/searxng/limiter.toml:ro
+    environment:
+      - SEARXNG_BASE_URL=http://searxng:8080/
+
+  slopmcp:
+    image: ${DOCKERHUB_USERNAME}/slopmcp:latest
+    container_name: slopmcp
+    restart: unless-stopped
+    depends_on:
+      - searxng
+    environment:
+      - SLOP_SEARXNG_URL=http://searxng:8080
+      - ASPNETCORE_URLS=http://+:8080
+
   slopchat:
     image: ${DOCKERHUB_USERNAME}/slopchat:latest
     container_name: slopchat
     restart: unless-stopped
+    depends_on:
+      - slopmcp
     environment:
       - SLOP_TELEGRAM_TOKEN=${SLOP_TELEGRAM_TOKEN}
       - SLOP_OPENROUTER_KEY=${SLOP_OPENROUTER_KEY}
       - SLOP_ADMIN_ID=${SLOP_ADMIN_ID}
       - SLOP_ALLOWED_CHATS=${SLOP_ALLOWED_CHATS}
+      - SLOP_MCP_URL=http://slopmcp:8080
     volumes:
       - /opt/slopchat/logs:/app/logs
+
