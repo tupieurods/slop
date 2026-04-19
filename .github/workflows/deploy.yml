@@ -74,7 +74,7 @@ jobs:
             export SLOP_ADMIN_ID="${{ secrets.SLOP_ADMIN_ID }}"
             export SLOP_ALLOWED_CHATS="${{ secrets.SLOP_ALLOWED_CHATS }}"
             cd /opt/slopchat
-            sed -i "s|:latest|:${{ github.sha }}|g" docker-compose.yml
+            sed -i "/${{ secrets.DOCKERHUB_USERNAME }}/s|:latest|:${{ github.sha }}|g" docker-compose.yml
             docker compose pull
             docker compose up -d --remove-orphans
             docker image prune -f
