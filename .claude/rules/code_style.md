@@ -91,6 +91,15 @@ Derived from `resharper_settings.DotSettings`, refined by user formatting prefer
 6. Private methods
 7. Nested types
 
+## Collections
+- Prefer **collection expressions** (`[]`, `[x, y]`) over `new()`, `new T()`, or `new[] { ... }` for all collection and array initializations.
+
+## Properties
+- Prefer `{ get; private init; }` over `{ get; set; }` for properties that are set once (e.g., configuration/options classes).
+
+## Constants
+- Use `const` for values that are compile-time constants instead of instance or static fields.
+
 ## Other
 - Remove unused `using` directives.
 - Prefer positional arguments over named arguments when the meaning is clear from context.

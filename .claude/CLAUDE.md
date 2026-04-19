@@ -11,4 +11,8 @@
 
 ## Important
 
-- **Never git commit automatically.** Always wait for explicit user confirmation before committing.
+1. Git Commit & Push Rules
+- Never commit unless explicitly told
+- Never squash/force-push unless explicitly told
+- Never push to an active PR without explicit ask (even in autopilot)
+- Prefer new commits over amending (exceptions: asked to amend, or minor fix to unpushed broken commit)

@@ -31,7 +31,7 @@ public class TelegramBotService: IHostedService
 
       ReceiverOptions receiverOptions = new()
       {
-        AllowedUpdates = new[] { UpdateType.Message }
+        AllowedUpdates = [UpdateType.Message]
       };
 
       _bot.StartReceiving(

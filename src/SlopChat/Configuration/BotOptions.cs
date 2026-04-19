@@ -2,13 +2,13 @@ namespace SlopChat.Configuration;
 
 public class BotOptions
 {
-    public string TelegramToken { get; set; } = string.Empty;
+    public string TelegramToken { get; private init; } = string.Empty;
 
-    public string OpenRouterKey { get; set; } = string.Empty;
+    public string OpenRouterKey { get; private init; } = string.Empty;
 
-    public long AdminId { get; set; }
+    public long AdminId { get; private init; }
 
-    public HashSet<long> AllowedChats { get; set; } = new();
+    public HashSet<long> AllowedChats { get; private init; } = [];
 
     public string SystemPrompt =>
       $"""
@@ -34,14 +34,14 @@ public class BotOptions
        11. Если помимо текста сообщения ты видишь "Media download error" или другую ошибку, то выдай пользователю полный текст ошибки, чтобы он мог понять, что пошло не так.
        """;
 
-    public string DefaultModel = "google/gemini-3-flash-preview";
+    public const string DefaultModel = "google/gemini-3-flash-preview";
 
-    public string McpServerUrl { get; set; } = string.Empty;
+    public string McpServerUrl { get; private init; } = string.Empty;
 
     public static BotOptions FromEnvironment()
     {
       string allowedChatsRaw = Environment.GetEnvironmentVariable("SLOP_ALLOWED_CHATS") ?? string.Empty;
-      HashSet<long> allowedChats = new();
+      HashSet<long> allowedChats = [];
       foreach(string part in allowedChatsRaw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
       {
         if(long.TryParse(part, out long chatId))

@@ -65,7 +65,7 @@ public class ConversationManager
       }
     }
 
-    public string GetModel(long chatId) => _models.GetOrAdd(chatId, _ => _options.DefaultModel);
+    public string GetModel(long chatId) => _models.GetOrAdd(chatId, _ => BotOptions.DefaultModel);
 
     public void SetModel(long chatId, string model)
     {
