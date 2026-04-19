@@ -1,4 +1,3 @@
-using System.Text;
 using Microsoft.Extensions.Logging;
 using SlopChat.Services;
 using Telegram.Bot;
@@ -72,50 +71,8 @@ namespace SlopChat.Handlers
         return;
       }
 
-      StringBuilder sb = new();
-      sb.AppendLine("Available models:");
-      sb.AppendLine();
-
-      foreach(string modelId in models)
-      {
-        sb.AppendLine($"  {modelId}");
-      }
-
-      string text = sb.ToString();
-
-      if(text.Length <= 4096)
-      {
-        await bot.SendMessage(
-          message.Chat.Id,
-          text,
-          replyParameters: new ReplyParameters { MessageId = message.MessageId },
-          cancellationToken: ct
-        );
-        return;
-      }
-
-      int offset = 0;
-      bool isFirst = true;
-      while(offset < text.Length)
-      {
-        int length = Math.Min(4096, text.Length - offset);
-
-        if(offset + length < text.Length)
-        {
-          int newlineIndex = text.LastIndexOf('\n', offset + length - 1, length);
-          if(newlineIndex > offset)
-          {
-            length = newlineIndex - offset + 1;
-          }
-        }
-
-        string chunk = text.Substring(offset, length);
-        ReplyParameters? replyParams = isFirst ? new ReplyParameters { MessageId = message.MessageId } : null;
-        await bot.SendMessage(message.Chat.Id, chunk, replyParameters: replyParams, cancellationToken: ct);
-
-        offset += length;
-        isFirst = false;
-      }
+      string text = "Available models:\n\n" + string.Join('\n', models.Select(m => $"  {m}"));
+      await TelegramMessageHelper.SendChunkedAsync(bot, message.Chat.Id, text, message.MessageId, ct);
     }
   }
 }

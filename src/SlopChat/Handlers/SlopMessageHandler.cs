@@ -37,7 +37,7 @@ public class SlopMessageHandler
       {
         string response = await _openRouter.GetCompletionAsync(history, _conversationManager.GetModel(chatId), ct, _toolExecutor);
         _conversationManager.AddAssistantMessage(chatId, response);
-        await SendChunkedAsync(bot, chatId, response, message.MessageId, ct);
+        await TelegramMessageHelper.SendChunkedAsync(bot, chatId, response, message.MessageId, ct);
       }
       catch(Exception ex)
       {
@@ -48,40 +48,6 @@ public class SlopMessageHandler
           replyParameters: new ReplyParameters { MessageId = message.MessageId },
           cancellationToken: ct
         );
-      }
-    }
-
-    private static async Task SendChunkedAsync(ITelegramBotClient bot, long chatId, string text, int replyToMessageId, CancellationToken ct)
-    {
-      const int maxLength = 4096;
-
-      if(text.Length <= maxLength)
-      {
-        await bot.SendMessage(chatId, text, replyParameters: new ReplyParameters { MessageId = replyToMessageId }, cancellationToken: ct);
-        return;
-      }
-
-      int offset = 0;
-      bool isFirst = true;
-      while(offset < text.Length)
-      {
-        int length = Math.Min(maxLength, text.Length - offset);
-
-        if(offset + length < text.Length)
-        {
-          int newlineIndex = text.LastIndexOf('\n', offset + length - 1, length);
-          if(newlineIndex > offset)
-          {
-            length = newlineIndex - offset + 1;
-          }
-        }
-
-        string chunk = text.Substring(offset, length);
-        ReplyParameters? replyParams = isFirst ? new ReplyParameters { MessageId = replyToMessageId } : null;
-        await bot.SendMessage(chatId, chunk, replyParameters: replyParams, cancellationToken: ct);
-
-        offset += length;
-        isFirst = false;
       }
     }
   }
