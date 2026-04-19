@@ -62,6 +62,7 @@ The bot maintains conversation context per chat — follow-up questions work nat
 | `!model` | Everyone | Show the currently active LLM model |
 | `!models` | Admin | List all available models from OpenRouter |
 | `!set_model <name>` | Admin | Switch to a different model (resets history) |
+| `!version` | Admin | Show the build timestamp |
 
 ## Tech Stack
 

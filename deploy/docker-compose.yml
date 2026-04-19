@@ -31,6 +31,7 @@ services:
       - SLOP_ADMIN_ID=${SLOP_ADMIN_ID}
       - SLOP_ALLOWED_CHATS=${SLOP_ALLOWED_CHATS}
       - SLOP_MCP_URL=http://slopmcp:8080
+      - SLOP_BUILD_TIME=${SLOP_BUILD_TIME:-unknown}
     volumes:
       - /opt/slopchat/logs:/app/logs
 

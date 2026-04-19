@@ -65,6 +65,17 @@ public class MessageRouter
         return;
       }
 
+      if(text.Equals("!version", StringComparison.OrdinalIgnoreCase))
+      {
+        if(!IsAdmin(message))
+        {
+          return;
+        }
+
+        await _commandHandler.HandleVersionAsync(bot, message, ct);
+        return;
+      }
+
       if(text.StartsWith("!set_model", StringComparison.OrdinalIgnoreCase))
       {
         if(!IsAdmin(message))

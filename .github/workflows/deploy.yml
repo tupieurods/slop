@@ -73,6 +73,7 @@ jobs:
             export SLOP_OPENROUTER_KEY="${{ secrets.SLOP_OPENROUTER_KEY }}"
             export SLOP_ADMIN_ID="${{ secrets.SLOP_ADMIN_ID }}"
             export SLOP_ALLOWED_CHATS="${{ secrets.SLOP_ALLOWED_CHATS }}"
+            export SLOP_BUILD_TIME="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
             cd /opt/slopchat
             sed -i "/${{ secrets.DOCKERHUB_USERNAME }}/s|:latest|:${{ github.sha }}|g" docker-compose.yml
             docker compose pull

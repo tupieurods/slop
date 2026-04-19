@@ -38,6 +38,8 @@ public class BotOptions
 
     public string McpServerUrl { get; private init; } = string.Empty;
 
+    public string BuildTime { get; private init; } = "unknown";
+
     public static BotOptions FromEnvironment()
     {
       string allowedChatsRaw = Environment.GetEnvironmentVariable("SLOP_ALLOWED_CHATS") ?? string.Empty;
@@ -56,7 +58,8 @@ public class BotOptions
         OpenRouterKey = Environment.GetEnvironmentVariable("SLOP_OPENROUTER_KEY") ?? string.Empty,
         AdminId = long.TryParse(Environment.GetEnvironmentVariable("SLOP_ADMIN_ID"), out long adminId) ? adminId : 0,
         AllowedChats = allowedChats,
-        McpServerUrl = Environment.GetEnvironmentVariable("SLOP_MCP_URL") ?? string.Empty
+        McpServerUrl = Environment.GetEnvironmentVariable("SLOP_MCP_URL") ?? string.Empty,
+        BuildTime = Environment.GetEnvironmentVariable("SLOP_BUILD_TIME") ?? "unknown"
       };
     }
   }
