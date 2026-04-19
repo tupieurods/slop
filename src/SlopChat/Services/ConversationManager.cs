@@ -1,13 +1,13 @@
 using System.Collections.Concurrent;
 using System.Text;
 using Microsoft.Extensions.Logging;
-using OpenAI.Chat;
 using SlopChat.Configuration;
+using SlopChat.Models;
 
-namespace SlopChat.Services;
-
-public class ConversationManager
+namespace SlopChat.Services
 {
+  public class ConversationManager
+  {
     private readonly ConcurrentDictionary<long, List<ChatMessage>> _histories = new();
     private readonly ConcurrentDictionary<long, string> _models = new();
     private readonly ConcurrentDictionary<long, bool> _compacting = new();
@@ -37,7 +37,7 @@ public class ConversationManager
     {
       lock(_lock)
       {
-        GetHistory(chatId).Add(ChatMessage.CreateUserMessage(content));
+        GetHistory(chatId).Add(ChatMessage.User(content));
       }
     }
 
@@ -45,7 +45,7 @@ public class ConversationManager
     {
       lock(_lock)
       {
-        GetHistory(chatId).Add(ChatMessage.CreateAssistantMessage(content));
+        GetHistory(chatId).Add(ChatMessage.Assistant(content));
       }
     }
 
@@ -112,7 +112,7 @@ public class ConversationManager
         {
           List<ChatMessage> history = GetHistory(chatId);
           history.RemoveRange(1, summarizeCount);
-          history.Insert(1, ChatMessage.CreateAssistantMessage($"Summary of previous conversation:\n{summary}"));
+          history.Insert(1, ChatMessage.Assistant($"Summary of previous conversation:\n{summary}"));
         }
 
         _logger.LogInformation("Compacted conversation history for chat {ChatId}", chatId);
@@ -127,7 +127,7 @@ public class ConversationManager
       }
     }
 
-    private List<ChatMessage> CreateInitialHistory() => [ChatMessage.CreateSystemMessage(_options.SystemPrompt)];
+    private List<ChatMessage> CreateInitialHistory() => [ChatMessage.System(_options.SystemPrompt)];
 
     private static List<ChatMessage> BuildSummarizationRequest(List<ChatMessage> messages)
     {
@@ -137,18 +137,18 @@ public class ConversationManager
 
       foreach(ChatMessage msg in messages)
       {
-        if(msg is UserChatMessage user)
+        switch(msg.Role)
         {
-          string text = string.Concat(user.Content.Select(p => p.Text ?? ""));
-          sb.AppendLine($"User: {text}");
-        }
-        else if(msg is AssistantChatMessage assistant)
-        {
-          string text = string.Concat(assistant.Content?.Select(p => p.Text ?? "") ?? []);
-          sb.AppendLine($"Assistant: {text}");
+          case "user":
+            sb.AppendLine($"User: {msg.Content}");
+            break;
+          case "assistant":
+            sb.AppendLine($"Assistant: {msg.Content}");
+            break;
         }
       }
 
-      return [ChatMessage.CreateUserMessage(sb.ToString())];
+      return [ChatMessage.User(sb.ToString())];
     }
   }
+}

@@ -3,10 +3,10 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
-using OpenAI.Chat;
+using SlopChat.Models;
 
-namespace SlopChat.Services {
-
+namespace SlopChat.Services
+{
   public class McpToolService : IToolExecutor, IAsyncDisposable
   {
     private readonly string _mcpServerUrl;
@@ -16,7 +16,7 @@ namespace SlopChat.Services {
 
     private McpClient? _client;
     private IList<McpClientTool>? _mcpTools;
-    private IReadOnlyList<ChatTool>? _chatTools;
+    private IReadOnlyList<ToolDefinition>? _toolDefinitions;
     private bool _initialized;
     private bool _disposed;
 
@@ -27,13 +27,13 @@ namespace SlopChat.Services {
       _logger = loggerFactory.CreateLogger<McpToolService>();
     }
 
-    public async Task<IReadOnlyList<ChatTool>> GetChatToolsAsync(CancellationToken ct)
+    public async Task<IReadOnlyList<ToolDefinition>> GetToolDefinitionsAsync(CancellationToken ct)
     {
       await EnsureInitializedAsync(ct);
-      return _chatTools ?? [];
+      return _toolDefinitions ?? [];
     }
 
-    public async Task<string> ExecuteAsync(string toolName, BinaryData arguments, CancellationToken ct)
+    public async Task<string> ExecuteAsync(string toolName, string arguments, CancellationToken ct)
     {
       await EnsureInitializedAsync(ct);
 
@@ -46,7 +46,7 @@ namespace SlopChat.Services {
       try
       {
         Dictionary<string, object?>? args =
-          JsonSerializer.Deserialize<Dictionary<string, object?>>(arguments.ToString());
+          JsonSerializer.Deserialize<Dictionary<string, object?>>(arguments);
 
         CallToolResult result = await mcpTool.CallAsync(args, cancellationToken: ct);
 
@@ -90,7 +90,7 @@ namespace SlopChat.Services {
       catch(Exception ex)
       {
         _logger.LogError(ex, "Failed to connect to MCP server at {Url}. Tools will be unavailable", _mcpServerUrl);
-        _chatTools = [];
+        _toolDefinitions = [];
         _mcpTools = [];
         _initialized = true;
       }
@@ -123,18 +123,22 @@ namespace SlopChat.Services {
 
       _mcpTools = await _client.ListToolsAsync(cancellationToken: ct);
 
-      var chatTools = new List<ChatTool>();
+      var tools = new List<ToolDefinition>();
       foreach(McpClientTool tool in _mcpTools)
       {
-        chatTools.Add(ChatTool.CreateFunctionTool(
-          tool.Name,
-          tool.Description,
-          BinaryData.FromString(tool.JsonSchema.GetRawText())
-        ));
+        tools.Add(new ToolDefinition
+        {
+          Function = new FunctionDefinition
+          {
+            Name = tool.Name,
+            Description = tool.Description,
+            Parameters = JsonSerializer.Deserialize<object>(tool.JsonSchema.GetRawText())
+          }
+        });
       }
 
-      _chatTools = chatTools;
-      _logger.LogInformation("Connected to MCP server. Discovered {Count} tools", _chatTools.Count);
+      _toolDefinitions = tools;
+      _logger.LogInformation("Connected to MCP server. Discovered {Count} tools", _toolDefinitions.Count);
     }
 
     public async ValueTask DisposeAsync()
@@ -154,5 +158,4 @@ namespace SlopChat.Services {
       _initLock.Dispose();
     }
   }
-
 }

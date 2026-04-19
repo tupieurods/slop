@@ -42,6 +42,7 @@ internal class Program
           services.AddSingleton<SlopMessageHandler>();
           services.AddSingleton<CommandHandler>();
           services.AddSingleton(sp => new OpenRouterClient(
+            new HttpClient(),
             options.OpenRouterKey,
             sp.GetRequiredService<ILogger<OpenRouterClient>>()
           ));

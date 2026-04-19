@@ -1,26 +1,27 @@
-using System.ClientModel;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using OpenAI;
-using OpenAI.Chat;
-using OpenAI.Models;
+using SlopChat.Models;
 
-namespace SlopChat.Services;
-
-public class OpenRouterClient
+namespace SlopChat.Services
 {
-    private readonly OpenAIClient _openAiClient;
+  public class OpenRouterClient
+  {
+    private readonly HttpClient _httpClient;
     private readonly ILogger<OpenRouterClient> _logger;
 
-    public OpenRouterClient(string apiKey, ILogger<OpenRouterClient> logger)
+    private static readonly JsonSerializerOptions JsonOptions = new()
     {
+      PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+    };
+
+    public OpenRouterClient(HttpClient httpClient, string apiKey, ILogger<OpenRouterClient> logger)
+    {
+      _httpClient = httpClient;
+      _httpClient.BaseAddress = new Uri("https://openrouter.ai/api/v1/");
+      _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
       _logger = logger;
-
-      OpenAIClientOptions options = new()
-      {
-        Endpoint = new Uri("https://openrouter.ai/api/v1")
-      };
-
-      _openAiClient = new OpenAIClient(new ApiKeyCredential(apiKey), options);
     }
 
     public async Task<string> GetCompletionAsync(
@@ -32,19 +33,13 @@ public class OpenRouterClient
     {
       try
       {
-        ChatClient chatClient = _openAiClient.GetChatClient(model);
-
-        ChatCompletionOptions? completionOptions = null;
+        List<ToolDefinition>? tools = null;
         if(toolExecutor is not null)
         {
-          var tools = await toolExecutor.GetChatToolsAsync(ct);
-          if(tools.Count > 0)
+          var defs = await toolExecutor.GetToolDefinitionsAsync(ct);
+          if(defs.Count > 0)
           {
-            completionOptions = new ChatCompletionOptions();
-            foreach(ChatTool tool in tools)
-            {
-              completionOptions.Tools.Add(tool);
-            }
+            tools = [..defs];
           }
         }
 
@@ -53,28 +48,43 @@ public class OpenRouterClient
 
         for(int i = 0; i < maxIterations; i++)
         {
-          ChatCompletion completion = completionOptions is not null
-            ? await chatClient.CompleteChatAsync(workingMessages, completionOptions, ct)
-            : await chatClient.CompleteChatAsync(workingMessages, cancellationToken: ct);
-
-          if(completion.FinishReason != ChatFinishReason.ToolCalls || toolExecutor is null)
+          var request = new ChatCompletionRequest
           {
-            return completion.Content[0].Text;
+            Model = model,
+            Messages = workingMessages,
+            Tools = tools
+          };
+
+          ChatCompletionResponse response = await SendCompletionRequestAsync(request, ct);
+          ChatChoice choice = response.Choices.FirstOrDefault()
+                              ?? throw new InvalidOperationException("OpenRouter returned no choices");
+
+          if(choice.FinishReason != "tool_calls" || toolExecutor is null || choice.Message?.ToolCalls is null)
+          {
+            return choice.Message?.Content ?? string.Empty;
           }
 
-          workingMessages.Add(ChatMessage.CreateAssistantMessage(completion));
+          workingMessages.Add(ChatMessage.Assistant(choice.Message.ToolCalls));
 
-          foreach(ChatToolCall toolCall in completion.ToolCalls)
+          foreach(Models.ToolCall toolCall in choice.Message.ToolCalls)
           {
-            _logger.LogInformation("Executing tool {ToolName}", toolCall.FunctionName);
-            string result = await toolExecutor.ExecuteAsync(toolCall.FunctionName, toolCall.FunctionArguments, ct);
-            workingMessages.Add(ChatMessage.CreateToolMessage(toolCall.Id, result));
+            _logger.LogInformation("Executing tool {ToolName}", toolCall.Function.Name);
+            string result = await toolExecutor.ExecuteAsync(toolCall.Function.Name, toolCall.Function.Arguments, ct);
+            workingMessages.Add(ChatMessage.Tool(toolCall.Id, result));
           }
         }
 
         _logger.LogWarning("Reached max tool call iterations ({Max}), forcing final response", maxIterations);
-        ChatCompletion finalCompletion = await chatClient.CompleteChatAsync(workingMessages, cancellationToken: ct);
-        return finalCompletion.Content[0].Text;
+        var finalRequest = new ChatCompletionRequest
+        {
+          Model = model,
+          Messages = workingMessages
+        };
+
+        ChatCompletionResponse finalResponse = await SendCompletionRequestAsync(finalRequest, ct);
+        ChatChoice finalChoice = finalResponse.Choices.FirstOrDefault()
+                                 ?? throw new InvalidOperationException("OpenRouter returned no choices");
+        return finalChoice.Message?.Content ?? string.Empty;
       }
       catch(Exception ex)
       {
@@ -87,21 +97,36 @@ public class OpenRouterClient
     {
       try
       {
-        OpenAIModelClient modelClient = _openAiClient.GetOpenAIModelClient();
-        ClientResult<OpenAIModelCollection> response = await modelClient.GetModelsAsync(cancellationToken: ct);
-        List<string> result = new();
+        using HttpResponseMessage response = await _httpClient.GetAsync("models", ct);
+        response.EnsureSuccessStatusCode();
 
-        foreach(var model in response.Value)
-        {
-          result.Add(model.Id);
-        }
+        string json = await response.Content.ReadAsStringAsync(ct);
+        ModelListResponse? modelList = JsonSerializer.Deserialize<ModelListResponse>(json, JsonOptions);
 
-        return result;
+        return modelList?.Data.Select(m => m.Id).ToList() ?? [];
       }
       catch(Exception ex)
       {
         _logger.LogError(ex, "Failed to fetch models from OpenRouter");
-        return new List<string>();
+        return [];
       }
     }
+
+    private async Task<ChatCompletionResponse> SendCompletionRequestAsync(ChatCompletionRequest request, CancellationToken ct)
+    {
+      string json = JsonSerializer.Serialize(request, JsonOptions);
+      using var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+      using HttpResponseMessage response = await _httpClient.PostAsync("chat/completions", content, ct);
+      string responseJson = await response.Content.ReadAsStringAsync(ct);
+
+      if(!response.IsSuccessStatusCode)
+      {
+        throw new HttpRequestException($"OpenRouter API returned {(int)response.StatusCode}: {responseJson}");
+      }
+
+      return JsonSerializer.Deserialize<ChatCompletionResponse>(responseJson, JsonOptions)
+             ?? throw new InvalidOperationException("Failed to deserialize OpenRouter response");
+    }
   }
+}

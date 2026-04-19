@@ -1,11 +1,11 @@
-using OpenAI.Chat;
+using SlopChat.Models;
 
 namespace SlopChat.Services {
 
   public interface IToolExecutor
   {
-    Task<IReadOnlyList<ChatTool>> GetChatToolsAsync(CancellationToken ct);
-    Task<string> ExecuteAsync(string toolName, BinaryData arguments, CancellationToken ct);
+    Task<IReadOnlyList<ToolDefinition>> GetToolDefinitionsAsync(CancellationToken ct);
+    Task<string> ExecuteAsync(string toolName, string arguments, CancellationToken ct);
   }
 
 }
