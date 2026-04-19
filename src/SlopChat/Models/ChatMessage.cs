@@ -8,6 +8,7 @@ namespace SlopChat.Models
     public string Role { get; set; } = string.Empty;
 
     [JsonPropertyName("content")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Content { get; set; }
 
     [JsonPropertyName("tool_calls")]

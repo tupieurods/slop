@@ -132,13 +132,14 @@ namespace SlopChat.Services
           {
             Name = tool.Name,
             Description = tool.Description,
-            Parameters = JsonSerializer.Deserialize<object>(tool.JsonSchema.GetRawText())
+            Parameters = JsonSerializer.Deserialize<JsonElement>(tool.JsonSchema.GetRawText())
           }
         });
       }
 
       _toolDefinitions = tools;
-      _logger.LogInformation("Connected to MCP server. Discovered {Count} tools", _toolDefinitions.Count);
+      _logger.LogInformation("Connected to MCP server. Discovered {Count} tools: {Names}",
+        _toolDefinitions.Count, string.Join(", ", tools.Select(t => t.Function.Name)));
     }
 
     public async ValueTask DisposeAsync()

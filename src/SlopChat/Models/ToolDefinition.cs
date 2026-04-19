@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace SlopChat.Models
@@ -22,6 +23,6 @@ namespace SlopChat.Models
 
     [JsonPropertyName("parameters")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public object? Parameters { get; set; }
+    public JsonElement? Parameters { get; set; }
   }
 }

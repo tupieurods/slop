@@ -40,6 +40,11 @@ namespace SlopChat.Services
           if(defs.Count > 0)
           {
             tools = [..defs];
+            _logger.LogInformation("Including {Count} tools in request", tools.Count);
+          }
+          else
+          {
+            _logger.LogWarning("Tool executor returned 0 tool definitions");
           }
         }
 
@@ -58,6 +63,9 @@ namespace SlopChat.Services
           ChatCompletionResponse response = await SendCompletionRequestAsync(request, ct);
           ChatChoice choice = response.Choices.FirstOrDefault()
                               ?? throw new InvalidOperationException("OpenRouter returned no choices");
+
+          _logger.LogDebug("Finish reason: {FinishReason}, has tool calls: {HasToolCalls}",
+            choice.FinishReason, choice.Message?.ToolCalls is not null);
 
           if(choice.FinishReason != "tool_calls" || toolExecutor is null || choice.Message?.ToolCalls is null)
           {
@@ -115,10 +123,13 @@ namespace SlopChat.Services
     private async Task<ChatCompletionResponse> SendCompletionRequestAsync(ChatCompletionRequest request, CancellationToken ct)
     {
       string json = JsonSerializer.Serialize(request, JsonOptions);
+      _logger.LogDebug("OpenRouter request: {Json}", json);
+
       using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
       using HttpResponseMessage response = await _httpClient.PostAsync("chat/completions", content, ct);
       string responseJson = await response.Content.ReadAsStringAsync(ct);
+      _logger.LogDebug("OpenRouter response: {Json}", responseJson);
 
       if(!response.IsSuccessStatusCode)
       {
