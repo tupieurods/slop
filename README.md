@@ -9,6 +9,9 @@ A Telegram group chat bot powered by [OpenRouter](https://openrouter.ai/) — ac
 
 - **Multi-Model** — switch between LLM models on the fly with `!set_model`
 - **Conversation Memory** — per-chat history with automatic summarization to keep token costs down
+- **Multimodal** — understands images: reply to a photo or send one with a caption to ask about it
+- **MCP Tools** — extensible tool calling via Model Context Protocol (search, exchange rates, etc.)
+- **Rich Formatting** — LLM markdown responses are converted to native Telegram formatting (bold, italic, code blocks, links)
 - **Access Control** — admin-only commands, allowlisted chats, private-chat restriction
 - **Docker Deployment** — one-push CI/CD via GitHub Actions → Docker Hub → VPS
 - **CLI Tooling** — helper utility to look up Telegram chat IDs for configuration
@@ -31,6 +34,7 @@ All configuration is done via environment variables:
 | `SLOP_OPENROUTER_KEY` | ✅ | OpenRouter API key |
 | `SLOP_ADMIN_ID` | | Telegram user ID of the bot admin |
 | `SLOP_ALLOWED_CHATS` | | Comma-separated chat IDs where the bot is allowed (e.g. `-100123,-100456`) |
+| `SLOP_MCP_SERVER_URL` | | MCP server URL for tool calling (optional) |
 
 ### Deployment
 
@@ -54,6 +58,14 @@ slop what is the mass of the sun?
 
 The bot maintains conversation context per chat — follow-up questions work naturally.
 
+#### Replying to Messages
+
+Reply to any message with a `slop` prefix to include it as context:
+
+- **Reply to text** — the quoted message is included in the prompt
+- **Reply to a photo** — the image is sent to the model for vision analysis
+- **Send a photo with caption** — attach a photo and caption it with `slop what's this?`
+
 ### Commands
 
 | Command | Who | Description |
@@ -66,10 +78,12 @@ The bot maintains conversation context per chat — follow-up questions work nat
 
 ## Tech Stack
 
-- **C# / .NET 10**
+- **C# / .NET 10** — target framework
 - **[Telegram.Bot](https://github.com/TelegramBots/Telegram.Bot)** — Telegram API client
 - **[OpenRouter API](https://openrouter.ai/docs/api-reference/overview)** — direct HTTP integration (HttpClient + System.Text.Json)
+- **[Model Context Protocol](https://modelcontextprotocol.io/)** — tool calling via MCP server
 - **NLog** — file-based logging with daily rotation
+- **xUnit** — unit tests
 - **Docker** + **GitHub Actions** — CI/CD pipeline
 
 ## License
