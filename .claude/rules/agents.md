@@ -19,8 +19,9 @@ After changes, always run `dotnet build src/SlopChat.slnx` to verify compilation
 
 ## Post-Change Review (Mandatory)
 
-After every code change that compiles successfully, **spawn a sub-agent** using `.claude/agents/code-reviewer.md` to perform an independent review.
+After every code change that compiles successfully, **spawn a sub-agent** using `.claude/agents/code-reviewer.md` with `agent_type: "code-review"`.
 
 - The reviewer reads project rules independently and checks the diff for bugs, style violations, and regressions.
-- The reviewer will **fix issues directly** if found and re-verify the build.
+- The reviewer **reports issues only** — it does not modify code.
+- The **main agent** is responsible for fixing any issues the reviewer finds.
 - Do **not** skip this step, even for small changes.

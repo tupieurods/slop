@@ -33,13 +33,12 @@ Check every item:
 
 1. Run `git diff` to see all uncommitted changes
 2. For each changed file, read enough surrounding context to understand the change
-3. If you find issues, **fix them directly** — do not just report them
-4. After fixing, run `dotnet build src/SlopChat.slnx` to verify compilation
-5. If everything is clean, respond with a brief summary: what was reviewed, what (if anything) was fixed
+3. If you find issues, **report them clearly** — describe the problem, location, and suggested fix
+4. If everything is clean, respond with a brief summary of what was reviewed
 
 ## What NOT to Do
 
+- Do not modify any code — report only
 - Do not refactor code outside the scope of the current changes
-- Do not add comments unless something is genuinely non-obvious
-- Do not change behavior — only fix style, bugs, or rule violations in the changed code
+- Do not change behavior
 - Do not commit or push
