@@ -50,6 +50,7 @@ namespace SlopChat.Services
 
         var workingMessages = new List<ChatMessage>(messages);
         const int maxIterations = 5;
+        int toolCallCount = 0;
 
         for(int i = 0; i < maxIterations; i++)
         {
@@ -69,7 +70,10 @@ namespace SlopChat.Services
 
           if(choice.FinishReason != "tool_calls" || toolExecutor is null || choice.Message?.ToolCalls is null)
           {
-            return choice.Message?.Content ?? string.Empty;
+            string content = choice.Message?.Content ?? string.Empty;
+            return toolCallCount > 0
+              ? string.Concat(Enumerable.Repeat("🔧", toolCallCount)) + " " + content
+              : content;
           }
 
           workingMessages.Add(ChatMessage.Assistant(choice.Message.ToolCalls));
@@ -79,6 +83,7 @@ namespace SlopChat.Services
             _logger.LogInformation("Executing tool {ToolName}", toolCall.Function.Name);
             string result = await toolExecutor.ExecuteAsync(toolCall.Function.Name, toolCall.Function.Arguments, ct);
             workingMessages.Add(ChatMessage.Tool(toolCall.Id, result));
+            toolCallCount++;
           }
         }
 
@@ -92,7 +97,10 @@ namespace SlopChat.Services
         ChatCompletionResponse finalResponse = await SendCompletionRequestAsync(finalRequest, ct);
         ChatChoice finalChoice = finalResponse.Choices.FirstOrDefault()
                                  ?? throw new InvalidOperationException("OpenRouter returned no choices");
-        return finalChoice.Message?.Content ?? string.Empty;
+        string finalContent = finalChoice.Message?.Content ?? string.Empty;
+        return toolCallCount > 0
+          ? string.Concat(Enumerable.Repeat("🔧", toolCallCount)) + " " + finalContent
+          : finalContent;
       }
       catch(Exception ex)
       {
