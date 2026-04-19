@@ -30,7 +30,13 @@ public class MessageRouter
 
     public async Task RouteAsync(ITelegramBotClient bot, Message message, CancellationToken ct)
     {
-      if(string.IsNullOrEmpty(message.Text) || message.From is null)
+      if(message.From is null)
+      {
+        return;
+      }
+
+      string? messageText = message.Text ?? message.Caption;
+      if(string.IsNullOrEmpty(messageText))
       {
         return;
       }
@@ -40,7 +46,7 @@ public class MessageRouter
         return;
       }
 
-      string text = message.Text.Trim();
+      string text = messageText.Trim();
 
       if(text.Equals("!reset", StringComparison.OrdinalIgnoreCase))
       {
@@ -96,7 +102,24 @@ public class MessageRouter
       if(userText is not null)
       {
         _logger.LogInformation("Slop message from {UserId} in chat {ChatId}", message.From.Id, message.Chat.Id);
-        await _slopHandler.HandleAsync(bot, message, userText, ct);
+
+        string? replyContext = null;
+        PhotoSize[]? replyPhotos = null;
+        Message? reply = message.ReplyToMessage;
+        if(reply is not null)
+        {
+          replyContext = reply.Text ?? reply.Caption;
+          replyPhotos = reply.Photo;
+          if(replyContext is not null && reply.From is not null)
+          {
+            string name = reply.From.FirstName ?? reply.From.Username ?? "Unknown";
+            replyContext = $"{name}: {replyContext}";
+          }
+        }
+
+        PhotoSize[]? directPhotos = message.Photo;
+
+        await _slopHandler.HandleAsync(bot, message, userText, ct, replyContext, replyPhotos, directPhotos);
       }
     }
 

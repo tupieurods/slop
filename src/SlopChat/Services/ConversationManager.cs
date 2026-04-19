@@ -41,6 +41,14 @@ namespace SlopChat.Services
       }
     }
 
+    public void AddMessage(long chatId, ChatMessage message)
+    {
+      lock(_lock)
+      {
+        GetHistory(chatId).Add(message);
+      }
+    }
+
     public void AddAssistantMessage(long chatId, string content)
     {
       lock(_lock)
@@ -147,10 +155,10 @@ namespace SlopChat.Services
         switch(msg.Role)
         {
           case "user":
-            sb.AppendLine($"User: {msg.Content}");
+            sb.AppendLine($"User: {msg.TextContent ?? "[media]"}");
             break;
           case "assistant":
-            sb.AppendLine($"Assistant: {msg.Content}");
+            sb.AppendLine($"Assistant: {msg.TextContent}");
             break;
         }
       }

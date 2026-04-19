@@ -9,7 +9,7 @@ namespace SlopChat.Models
 
     [JsonPropertyName("content")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Content { get; set; }
+    public object? Content { get; set; }
 
     [JsonPropertyName("tool_calls")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -19,9 +19,18 @@ namespace SlopChat.Models
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ToolCallId { get; set; }
 
+    [JsonIgnore]
+    public string? TextContent => Content as string;
+
     public static ChatMessage System(string content) => new() { Role = "system", Content = content };
     public static ChatMessage User(string content) => new() { Role = "user", Content = content };
     public static ChatMessage Assistant(string content) => new() { Role = "assistant", Content = content };
+
+    public static ChatMessage UserMultimodal(List<ContentPart> parts) => new()
+    {
+      Role = "user",
+      Content = parts
+    };
 
     public static ChatMessage Assistant(List<ToolCall> toolCalls) => new()
     {

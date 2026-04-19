@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using SlopChat.Models;
 using SlopChat.Services;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -25,11 +26,12 @@ public class SlopMessageHandler
       _logger = logger;
     }
 
-    public async Task HandleAsync(ITelegramBotClient bot, Message message, string userText, CancellationToken ct)
+    public async Task HandleAsync(ITelegramBotClient bot, Message message, string userText, CancellationToken ct, string? replyContext = null, PhotoSize[]? replyPhotos = null, PhotoSize[]? directPhotos = null)
     {
       long chatId = message.Chat.Id;
 
-      _conversationManager.AddUserMessage(chatId, userText);
+      ChatMessage userMessage = await BuildUserMessageAsync(bot, userText, replyContext, replyPhotos, directPhotos, ct);
+      _conversationManager.AddMessage(chatId, userMessage);
       await _conversationManager.CompactIfNeededAsync(chatId, ct);
       var history = _conversationManager.GetSnapshot(chatId);
 
@@ -49,5 +51,48 @@ public class SlopMessageHandler
           cancellationToken: ct
         );
       }
+    }
+
+    private static async Task<ChatMessage> BuildUserMessageAsync(
+      ITelegramBotClient bot,
+      string userText,
+      string? replyContext,
+      PhotoSize[]? replyPhotos,
+      PhotoSize[]? directPhotos,
+      CancellationToken ct)
+    {
+      bool hasPhotos = (replyPhotos is { Length: > 0 }) || (directPhotos is { Length: > 0 });
+
+      if(!hasPhotos && replyContext is null)
+      {
+        return ChatMessage.User(userText);
+      }
+
+      string textContent = replyContext is not null
+        ? $"[Replying to message: {replyContext}]\n{userText}"
+        : userText;
+
+      if(!hasPhotos)
+      {
+        return ChatMessage.User(textContent);
+      }
+
+      // Try downloading the photo
+      PhotoSize[]? photos = directPhotos ?? replyPhotos;
+      string? dataUrl = photos is not null
+        ? await TelegramMediaDownloader.DownloadPhotoAsDataUrlAsync(bot, photos, ct)
+        : null;
+
+      // Fall back to text-only if download failed
+      if(dataUrl is null)
+      {
+        return ChatMessage.User(textContent);
+      }
+
+      return ChatMessage.UserMultimodal(
+      [
+        ContentPart.TextContent(textContent),
+        ContentPart.Image(dataUrl)
+      ]);
     }
   }
