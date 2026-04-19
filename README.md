@@ -67,7 +67,7 @@ The bot maintains conversation context per chat — follow-up questions work nat
 
 - **C# / .NET 10**
 - **[Telegram.Bot](https://github.com/TelegramBots/Telegram.Bot)** — Telegram API client
-- **[OpenAI SDK](https://github.com/openai/openai-dotnet)** — OpenRouter-compatible client
+- **[OpenRouter API](https://openrouter.ai/docs/api-reference/overview)** — direct HTTP integration (HttpClient + System.Text.Json)
 - **NLog** — file-based logging with daily rotation
 - **Docker** + **GitHub Actions** — CI/CD pipeline
 
