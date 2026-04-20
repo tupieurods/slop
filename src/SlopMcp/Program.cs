@@ -20,7 +20,8 @@ internal class Program
     builder.Services
       .AddMcpServer()
       .WithHttpTransport()
-      .WithTools<WebSearchTool>();
+      .WithTools<WebSearchTool>()
+      .WithTools<GetCurrentDateTool>();
 
     var app = builder.Build();
     app.MapMcp();

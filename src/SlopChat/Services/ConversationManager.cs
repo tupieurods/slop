@@ -61,14 +61,7 @@ namespace SlopChat.Services
     {
       lock(_lock)
       {
-        var history = GetHistory(chatId);
-        var snapshot = new List<ChatMessage>(history.Count + 1)
-        {
-          history[0],
-          ChatMessage.System($"Сегодняшняя дата: {TimeProvider.System.GetUtcNow():yyyy-MM-dd}.")
-        };
-        snapshot.AddRange(history.Skip(1));
-        return snapshot;
+        return [..GetHistory(chatId)];
       }
     }
 
