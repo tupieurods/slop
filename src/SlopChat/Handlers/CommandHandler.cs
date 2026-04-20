@@ -88,5 +88,114 @@ namespace SlopChat.Handlers
         cancellationToken: ct
       );
     }
+
+    public async Task HandleDrawModelsAsync(ITelegramBotClient bot, Message message, CancellationToken ct)
+    {
+      var models = await _openRouter.GetImageModelsAsync(ct);
+
+      if(models.Count == 0)
+      {
+        await bot.SendMessage(
+          message.Chat.Id,
+          "Failed to fetch image models list.",
+          replyParameters: new ReplyParameters { MessageId = message.MessageId },
+          cancellationToken: ct
+        );
+        return;
+      }
+
+      string text = "Available image generation models:\n\n" + string.Join('\n', models.Select(m => $"  {m}"));
+      await TelegramMessageHelper.SendChunkedAsync(bot, message.Chat.Id, text, message.MessageId, ct);
+    }
+
+    public async Task HandleSetDrawModelAsync(ITelegramBotClient bot, Message message, string modelName, CancellationToken ct)
+    {
+      _conversationManager.SetDrawModel(message.Chat.Id, modelName);
+      _logger.LogInformation(
+        "Draw model changed to {Model} in chat {ChatId} by admin {UserId}",
+        modelName,
+        message.Chat.Id,
+        message.From?.Id
+      );
+      await bot.SendMessage(
+        message.Chat.Id,
+        $"Draw model set to: {modelName}",
+        replyParameters: new ReplyParameters { MessageId = message.MessageId },
+        cancellationToken: ct
+      );
+    }
+
+    public async Task HandleDrawAsync(
+      ITelegramBotClient bot,
+      Message message,
+      string prompt,
+      CancellationToken ct,
+      string? replyContext = null,
+      PhotoSize[]? replyPhotos = null
+    )
+    {
+      long chatId = message.Chat.Id;
+      string drawModel = _conversationManager.GetDrawModel(chatId);
+
+      string fullPrompt = string.IsNullOrEmpty(prompt) && replyContext is not null
+        ? replyContext
+        : replyContext is not null
+          ? $"{prompt}\n\nContext from replied message: {replyContext}"
+          : prompt;
+
+      if(string.IsNullOrWhiteSpace(fullPrompt))
+      {
+        await bot.SendMessage(
+          chatId,
+          "Please provide a prompt for image generation.",
+          replyParameters: new ReplyParameters { MessageId = message.MessageId },
+          cancellationToken: ct
+        );
+        return;
+      }
+
+      await bot.SendChatAction(chatId, Telegram.Bot.Types.Enums.ChatAction.UploadPhoto, cancellationToken: ct);
+
+      byte[]? imageBytes;
+
+      if(replyPhotos is { Length: > 0 })
+      {
+        string? imageDataUrl = await TelegramMediaDownloader.DownloadPhotoAsDataUrlAsync(bot, replyPhotos, ct);
+        if(imageDataUrl is not null)
+        {
+          imageBytes = await _openRouter.GenerateImageFromImageAsync(fullPrompt, drawModel, imageDataUrl, ct);
+        }
+        else
+        {
+          imageBytes = await _openRouter.GenerateImageAsync(fullPrompt, drawModel, ct);
+        }
+      }
+      else
+      {
+        imageBytes = await _openRouter.GenerateImageAsync(fullPrompt, drawModel, ct);
+      }
+
+      if(imageBytes is null || imageBytes.Length == 0)
+      {
+        await bot.SendMessage(
+          chatId,
+          "Failed to generate image. The model may not support this operation.",
+          replyParameters: new ReplyParameters { MessageId = message.MessageId },
+          cancellationToken: ct
+        );
+        return;
+      }
+
+      using var stream = new MemoryStream(imageBytes);
+      string caption = fullPrompt.Length > 1024 ? fullPrompt[..1021] + "..." : fullPrompt;
+
+      await bot.SendPhoto(
+        chatId,
+        InputFile.FromStream(stream, "generated.png"),
+        caption: caption,
+        replyParameters: new ReplyParameters { MessageId = message.MessageId },
+        cancellationToken: ct
+      );
+    }
   }
 }

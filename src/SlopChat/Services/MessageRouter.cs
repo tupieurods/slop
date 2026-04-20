@@ -38,6 +38,9 @@ public class MessageRouter
       ["!models"] = (HandleModelsCommand, true),
       ["!version"] = (HandleVersionCommand, true),
       ["!set_model"] = (HandleSetModelCommand, true),
+      ["!draw_models"] = (HandleDrawModelsCommand, true),
+      ["!set_draw_model"] = (HandleSetDrawModelCommand, true),
+      ["!draw"] = (HandleDrawCommand, false),
     };
   }
 
@@ -126,6 +129,33 @@ public class MessageRouter
     {
       await _commandHandler.HandleSetModelAsync(bot, message, args, ct);
     }
+  }
+
+  private async Task HandleDrawModelsCommand(ITelegramBotClient bot, Message message, string args, CancellationToken ct)
+  {
+    await _commandHandler.HandleDrawModelsAsync(bot, message, ct);
+  }
+
+  private async Task HandleSetDrawModelCommand(ITelegramBotClient bot, Message message, string args, CancellationToken ct)
+  {
+    if(!string.IsNullOrEmpty(args))
+    {
+      await _commandHandler.HandleSetDrawModelAsync(bot, message, args, ct);
+    }
+  }
+
+  private async Task HandleDrawCommand(ITelegramBotClient bot, Message message, string args, CancellationToken ct)
+  {
+    string? replyContext = null;
+    PhotoSize[]? replyPhotos = null;
+    Message? reply = message.ReplyToMessage;
+    if(reply is not null)
+    {
+      replyContext = reply.Text ?? reply.Caption;
+      replyPhotos = reply.Photo;
+    }
+
+    await _commandHandler.HandleDrawAsync(bot, message, args, ct, replyContext, replyPhotos);
   }
 
   private async Task HandleSlopMessageAsync(ITelegramBotClient bot, Message message, string userText, CancellationToken ct)

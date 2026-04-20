@@ -10,6 +10,7 @@ namespace SlopChat.Services
   {
     private readonly ConcurrentDictionary<long, List<ChatMessage>> _histories = new();
     private readonly ConcurrentDictionary<long, string> _models = new();
+    private readonly ConcurrentDictionary<long, string> _drawModels = new();
     private readonly ConcurrentDictionary<long, bool> _compacting = new();
     private readonly OpenRouterClient _openRouter;
     private readonly BotOptions _options;
@@ -78,6 +79,13 @@ namespace SlopChat.Services
     public void SetModel(long chatId, string model)
     {
       _models[chatId] = model;
+    }
+
+    public string GetDrawModel(long chatId) => _drawModels.GetOrAdd(chatId, _ => BotOptions.DefaultDrawModel);
+
+    public void SetDrawModel(long chatId, string model)
+    {
+      _drawModels[chatId] = model;
     }
 
     public async Task CompactIfNeededAsync(long chatId, CancellationToken ct)

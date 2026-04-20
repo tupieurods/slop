@@ -21,16 +21,16 @@
 |---|---|
 | `Configuration/` | Config loaded from `SLOP_*` env vars (`BotOptions`) |
 | `Services/` | Core services: message routing, conversation history, OpenRouter API client, markdown converter, media downloader |
-| `Handlers/` | Command handler (`!reset`, `!model`, `!models`, `!version`, `!set_model`) and Slop message handler (LLM completions) |
-| `Models/` | DTOs for OpenRouter API (ChatMessage, ContentPart, ToolDefinition, ToolCall, etc.) |
+| `Handlers/` | Command handler (`!reset`, `!model`, `!models`, `!version`, `!set_model`, `!draw`, `!draw_models`, `!set_draw_model`) and Slop message handler (LLM completions) |
+| `Models/` | DTOs for OpenRouter API (ChatMessage, ContentPart, ToolDefinition, ToolCall, ImageGenerationRequest/Response, etc.) |
 
 ## Key Services
 
 | Service | File | Responsibility |
 |---|---|---|
 | `MessageRouter` | `Services/MessageRouter.cs` | Routes incoming Telegram messages to commands or Slop handler; dictionary-based command dispatch |
-| `ConversationManager` | `Services/ConversationManager.cs` | Per-chat message history, date injection, compaction/summarization |
-| `OpenRouterClient` | `Services/OpenRouterClient.cs` | HTTP client for OpenRouter API (chat completions, models), tool call loop, wrench emoji prefix |
+| `ConversationManager` | `Services/ConversationManager.cs` | Per-chat message history, per-chat model selection (LLM + draw), date injection, compaction/summarization |
+| `OpenRouterClient` | `Services/OpenRouterClient.cs` | HTTP client for OpenRouter API (chat completions, models, image generation), tool call loop, wrench emoji prefix |
 | `McpToolService` | `Services/McpToolService.cs` | MCP tool provider (implements `IToolExecutor`) |
 | `MarkdownConverter` | `Services/MarkdownConverter.cs` | Converts LLM markdown → plain text + Telegram `MessageEntity` list |
 | `TelegramMessageHelper` | `Services/TelegramMessageHelper.cs` | Chunked message sending with entity-aware splitting |

@@ -8,6 +8,7 @@ A Telegram group chat bot powered by [OpenRouter](https://openrouter.ai/) — ac
 ## Features
 
 - **Multi-Model** — switch between LLM models on the fly with `!set_model`
+- **Image Generation** — generate images with `!draw`, supports text-to-image and image-to-image (reply to a photo with a prompt)
 - **Conversation Memory** — per-chat history with automatic summarization to keep token costs down
 - **Multimodal** — understands images: reply to a photo or send one with a caption to ask about it
 - **MCP Tools** — extensible tool calling via Model Context Protocol (search, exchange rates, etc.)
@@ -72,8 +73,11 @@ Reply to any message with a `slop` prefix to include it as context:
 |---|---|---|
 | `!reset` | Everyone | Clear conversation history for this chat |
 | `!model` | Everyone | Show the currently active LLM model |
+| `!draw <prompt>` | Everyone | Generate an image from a text prompt (reply to a message to use its text/image as context) |
 | `!models` | Admin | List all available models from OpenRouter |
 | `!set_model <name>` | Admin | Switch to a different model (resets history) |
+| `!draw_models` | Admin | List available image generation models |
+| `!set_draw_model <name>` | Admin | Switch the image generation model (default: `openai/gpt-image-1`) |
 | `!version` | Admin | Show the build timestamp |
 
 ## Tech Stack

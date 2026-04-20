@@ -15,6 +15,7 @@ Single-project console app using `Microsoft.Extensions.Hosting` generic host.
 - Responds to messages prefixed with "slop"/"слоп" (case-insensitive)
 - Private chat: admin-only; Groups: allowed list only
 - `!models` (admin-only), `!model`, `!reset` commands
+- `!draw` (everyone), `!draw_models` (admin), `!set_draw_model` (admin) — image generation via OpenRouter
 - In-memory conversation history, capped at 50 pairs + system prompt
 
 ### Deployment
