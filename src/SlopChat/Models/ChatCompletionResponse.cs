@@ -33,5 +33,23 @@ namespace SlopChat.Models
 
     [JsonPropertyName("tool_calls")]
     public List<ToolCall>? ToolCalls { get; set; }
+
+    [JsonPropertyName("images")]
+    public List<ImageContent>? Images { get; set; }
+  }
+
+  public class ImageContent
+  {
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+
+    [JsonPropertyName("image_url")]
+    public ImageUrlRef? ImageUrl { get; set; }
+  }
+
+  public class ImageUrlRef
+  {
+    [JsonPropertyName("url")]
+    public string Url { get; set; } = string.Empty;
   }
 }

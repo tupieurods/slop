@@ -13,5 +13,9 @@ namespace SlopChat.Models
     [JsonPropertyName("tools")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<ToolDefinition>? Tools { get; set; }
+
+    [JsonPropertyName("modalities")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? Modalities { get; set; }
   }
 }
