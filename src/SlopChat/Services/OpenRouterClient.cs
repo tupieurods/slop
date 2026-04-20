@@ -159,7 +159,7 @@ namespace SlopChat.Services
         {
           Model = model,
           Messages = [ChatMessage.User(prompt)],
-          Modalities = ["image", "text"]
+          Modalities = ["image"]
         };
 
         ChatCompletionResponse response = await SendCompletionRequestAsync(request, ct);
@@ -191,7 +191,7 @@ namespace SlopChat.Services
         {
           Model = model,
           Messages = [message],
-          Modalities = ["image", "text"]
+          Modalities = ["image"]
         };
 
         ChatCompletionResponse response = await SendCompletionRequestAsync(request, ct);
