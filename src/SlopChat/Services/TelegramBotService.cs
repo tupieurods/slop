@@ -11,23 +11,29 @@ public class TelegramBotService: IHostedService
 {
     private readonly TelegramBotClient _bot;
     private readonly MessageRouter _router;
+    private readonly OpenRouterClient _openRouter;
     private readonly ILogger<TelegramBotService> _logger;
     private CancellationTokenSource? _cts;
 
     public TelegramBotService(
       TelegramBotClient bot,
       MessageRouter router,
+      OpenRouterClient openRouter,
       ILogger<TelegramBotService> logger
     )
     {
       _bot = bot;
       _router = router;
+      _openRouter = openRouter;
       _logger = logger;
     }
 
-    public Task StartAsync(CancellationToken cancellationToken)
+    public async Task StartAsync(CancellationToken cancellationToken)
     {
       _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+      var models = await _openRouter.GetImageModelsAsync(cancellationToken);
+      _logger.LogInformation("Loaded {Count} image generation models", models.Count);
 
       ReceiverOptions receiverOptions = new()
       {
@@ -42,7 +48,6 @@ public class TelegramBotService: IHostedService
       );
 
       _logger.LogInformation("Telegram bot started receiving updates");
-      return Task.CompletedTask;
     }
 
     public Task StopAsync(CancellationToken cancellationToken)

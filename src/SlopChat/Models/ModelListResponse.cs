@@ -28,4 +28,10 @@ namespace SlopChat.Models
     [JsonPropertyName("output_modalities")]
     public List<string>? OutputModalities { get; set; }
   }
+
+  public class ImageModelInfo
+  {
+    public string Id { get; init; } = string.Empty;
+    public bool CanOutputText { get; init; }
+  }
 }

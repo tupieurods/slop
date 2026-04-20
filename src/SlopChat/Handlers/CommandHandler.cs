@@ -104,7 +104,8 @@ namespace SlopChat.Handlers
         return;
       }
 
-      string text = "Available image generation models:\n\n" + string.Join('\n', models.Select(m => $"  {m}"));
+      string text = "Available image generation models:\n\n" +
+        string.Join('\n', models.Select(m => $"  {m.Id}{(m.CanOutputText ? " (text+image)" : " (image only)")}"));
       await TelegramMessageHelper.SendChunkedAsync(bot, message.Chat.Id, text, message.MessageId, ct);
     }
 

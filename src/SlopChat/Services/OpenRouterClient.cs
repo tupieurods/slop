@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -10,6 +11,7 @@ namespace SlopChat.Services
   {
     private readonly HttpClient _httpClient;
     private readonly ILogger<OpenRouterClient> _logger;
+    private readonly ConcurrentDictionary<string, ImageModelInfo> _imageModelCache = new();
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -129,20 +131,31 @@ namespace SlopChat.Services
     }
 
 
-    public async Task<List<string>> GetImageModelsAsync(CancellationToken ct)
+    public async Task<List<ImageModelInfo>> GetImageModelsAsync(CancellationToken ct)
     {
       try
       {
-        using HttpResponseMessage response = await _httpClient.GetAsync("models", ct);
+        using HttpResponseMessage response = await _httpClient.GetAsync("models?output_modalities=image", ct);
         response.EnsureSuccessStatusCode();
 
         string json = await response.Content.ReadAsStringAsync(ct);
         ModelListResponse? modelList = JsonSerializer.Deserialize<ModelListResponse>(json, JsonOptions);
 
-        return modelList?.Data
-          .Where(m => m.IsImageGeneration)
-          .Select(m => m.Id)
+        var models = modelList?.Data
+          .Select(m => new ImageModelInfo
+          {
+            Id = m.Id,
+            CanOutputText = m.Architecture?.OutputModalities?.Contains("text", StringComparer.OrdinalIgnoreCase) == true
+          })
           .ToList() ?? [];
+
+        _imageModelCache.Clear();
+        foreach(var model in models)
+        {
+          _imageModelCache[model.Id] = model;
+        }
+
+        return models;
       }
       catch(Exception ex)
       {
@@ -155,15 +168,21 @@ namespace SlopChat.Services
     {
       try
       {
+        bool canOutputText = !_imageModelCache.TryGetValue(model, out var cached) || cached.CanOutputText;
+
+        var messages = new List<ChatMessage>();
+        if(canOutputText)
+        {
+          messages.Add(ChatMessage.System(
+            "You are an image generation assistant. Generate an image based on the user's prompt. Do not ask clarifying questions — just create the image."));
+        }
+        messages.Add(ChatMessage.User(prompt));
+
         var request = new ChatCompletionRequest
         {
           Model = model,
-          Messages =
-          [
-            ChatMessage.System("You are an image generation assistant. Generate an image based on the user's prompt. Do not ask clarifying questions — just create the image."),
-            ChatMessage.User(prompt)
-          ],
-          Modalities = ["image", "text"]
+          Messages = messages,
+          Modalities = canOutputText ? ["image", "text"] : ["image"]
         };
 
         ChatCompletionResponse response = await SendCompletionRequestAsync(request, ct);
@@ -185,21 +204,27 @@ namespace SlopChat.Services
     {
       try
       {
+        bool canOutputText = !_imageModelCache.TryGetValue(model, out var cached) || cached.CanOutputText;
+
         var userMessage = ChatMessage.UserMultimodal(
         [
           ContentPart.TextContent(prompt),
           ContentPart.Image(imageDataUrl)
         ]);
 
+        var messages = new List<ChatMessage>();
+        if(canOutputText)
+        {
+          messages.Add(ChatMessage.System(
+            "You are an image generation assistant. Generate an image based on the user's prompt and the provided reference image. Do not ask clarifying questions — just create the image."));
+        }
+        messages.Add(userMessage);
+
         var request = new ChatCompletionRequest
         {
           Model = model,
-          Messages =
-          [
-            ChatMessage.System("You are an image generation assistant. Generate an image based on the user's prompt and the provided reference image. Do not ask clarifying questions — just create the image."),
-            userMessage
-          ],
-          Modalities = ["image", "text"]
+          Messages = messages,
+          Modalities = canOutputText ? ["image", "text"] : ["image"]
         };
 
         ChatCompletionResponse response = await SendCompletionRequestAsync(request, ct);
