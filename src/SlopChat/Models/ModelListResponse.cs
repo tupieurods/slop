@@ -16,10 +16,16 @@ namespace SlopChat.Models
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
 
-    [JsonPropertyName("output_modalities")]
-    public List<string>? OutputModalities { get; set; }
+    [JsonPropertyName("architecture")]
+    public ModelArchitecture? Architecture { get; set; }
 
     public bool IsImageGeneration =>
-      OutputModalities?.Contains("image", StringComparer.OrdinalIgnoreCase) == true;
+      Architecture?.OutputModalities?.Contains("image", StringComparer.OrdinalIgnoreCase) == true;
+  }
+
+  public class ModelArchitecture
+  {
+    [JsonPropertyName("output_modalities")]
+    public List<string>? OutputModalities { get; set; }
   }
 }
