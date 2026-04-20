@@ -151,15 +151,19 @@ namespace SlopChat.Services
       }
     }
 
-    public async Task<byte[]?> GenerateImageAsync(string prompt, string model, CancellationToken ct)
+    public async Task<ImageGenerationResult> GenerateImageAsync(string prompt, string model, CancellationToken ct)
     {
       try
       {
         var request = new ChatCompletionRequest
         {
           Model = model,
-          Messages = [ChatMessage.User(prompt)],
-          Modalities = ["image"]
+          Messages =
+          [
+            ChatMessage.System("You are an image generation assistant. Generate an image based on the user's prompt. Do not ask clarifying questions — just create the image."),
+            ChatMessage.User(prompt)
+          ],
+          Modalities = ["image", "text"]
         };
 
         ChatCompletionResponse response = await SendCompletionRequestAsync(request, ct);
@@ -168,11 +172,11 @@ namespace SlopChat.Services
       catch(Exception ex)
       {
         _logger.LogError(ex, "Image generation error");
-        return null;
+        return ImageGenerationResult.Failure($"Image generation error: {ex.Message}");
       }
     }
 
-    public async Task<byte[]?> GenerateImageFromImageAsync(
+    public async Task<ImageGenerationResult> GenerateImageFromImageAsync(
       string prompt,
       string model,
       string imageDataUrl,
@@ -181,7 +185,7 @@ namespace SlopChat.Services
     {
       try
       {
-        var message = ChatMessage.UserMultimodal(
+        var userMessage = ChatMessage.UserMultimodal(
         [
           ContentPart.TextContent(prompt),
           ContentPart.Image(imageDataUrl)
@@ -190,8 +194,12 @@ namespace SlopChat.Services
         var request = new ChatCompletionRequest
         {
           Model = model,
-          Messages = [message],
-          Modalities = ["image"]
+          Messages =
+          [
+            ChatMessage.System("You are an image generation assistant. Generate an image based on the user's prompt and the provided reference image. Do not ask clarifying questions — just create the image."),
+            userMessage
+          ],
+          Modalities = ["image", "text"]
         };
 
         ChatCompletionResponse response = await SendCompletionRequestAsync(request, ct);
@@ -200,43 +208,53 @@ namespace SlopChat.Services
       catch(Exception ex)
       {
         _logger.LogError(ex, "Image-to-image generation error");
-        return null;
+        return ImageGenerationResult.Failure($"Image-to-image generation error: {ex.Message}");
       }
     }
 
-    private byte[]? ExtractImageFromResponse(ChatCompletionResponse response)
+    private ImageGenerationResult ExtractImageFromResponse(ChatCompletionResponse response)
     {
       ChatChoiceMessage? message = response.Choices.FirstOrDefault()?.Message;
-      if(message?.Images is not { Count: > 0 })
+      if(message is null)
       {
-        _logger.LogWarning("Image generation response contained no images");
-        return null;
+        _logger.LogWarning("Image generation response contained no message");
+        return ImageGenerationResult.Failure("No response from model.");
       }
 
-      string? dataUrl = message.Images[0].ImageUrl?.Url;
-      if(dataUrl is null)
+      if(message.Images is { Count: > 0 })
       {
-        _logger.LogWarning("Image generation response had null image URL");
-        return null;
+        string? dataUrl = message.Images[0].ImageUrl?.Url;
+        if(dataUrl is not null)
+        {
+          int base64Start = dataUrl.IndexOf("base64,", StringComparison.Ordinal);
+          if(base64Start >= 0)
+          {
+            string base64 = dataUrl[(base64Start + "base64,".Length)..];
+            try
+            {
+              byte[] bytes = Convert.FromBase64String(base64);
+              return ImageGenerationResult.Success(bytes, message.Content);
+            }
+            catch(FormatException ex)
+            {
+              _logger.LogWarning(ex, "Failed to decode base64 image data");
+            }
+          }
+          else
+          {
+            _logger.LogWarning("Image URL is not a base64 data URL");
+          }
+        }
       }
 
-      int base64Start = dataUrl.IndexOf("base64,", StringComparison.Ordinal);
-      if(base64Start < 0)
+      if(!string.IsNullOrEmpty(message.Content))
       {
-        _logger.LogWarning("Image URL is not a base64 data URL");
-        return null;
+        _logger.LogWarning("Image generation returned text instead of image");
+        return ImageGenerationResult.TextOnly(message.Content);
       }
 
-      string base64 = dataUrl[(base64Start + "base64,".Length)..];
-      try
-      {
-        return Convert.FromBase64String(base64);
-      }
-      catch(FormatException ex)
-      {
-        _logger.LogWarning(ex, "Failed to decode base64 image data");
-        return null;
-      }
+      _logger.LogWarning("Image generation response contained no images and no text");
+      return ImageGenerationResult.Failure("Model returned empty response.");
     }
 
 

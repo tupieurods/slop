@@ -156,43 +156,50 @@ namespace SlopChat.Handlers
 
       await bot.SendChatAction(chatId, Telegram.Bot.Types.Enums.ChatAction.UploadPhoto, cancellationToken: ct);
 
-      byte[]? imageBytes;
+      Models.ImageGenerationResult result;
 
       if(replyPhotos is { Length: > 0 })
       {
         string? imageDataUrl = await TelegramMediaDownloader.DownloadPhotoAsDataUrlAsync(bot, replyPhotos, ct);
         if(imageDataUrl is not null)
         {
-          imageBytes = await _openRouter.GenerateImageFromImageAsync(fullPrompt, drawModel, imageDataUrl, ct);
+          result = await _openRouter.GenerateImageFromImageAsync(fullPrompt, drawModel, imageDataUrl, ct);
         }
         else
         {
-          imageBytes = await _openRouter.GenerateImageAsync(fullPrompt, drawModel, ct);
+          result = await _openRouter.GenerateImageAsync(fullPrompt, drawModel, ct);
         }
       }
       else
       {
-        imageBytes = await _openRouter.GenerateImageAsync(fullPrompt, drawModel, ct);
+        result = await _openRouter.GenerateImageAsync(fullPrompt, drawModel, ct);
       }
 
-      if(imageBytes is null || imageBytes.Length == 0)
+      if(result.HasImage)
       {
-        await bot.SendMessage(
+        using var stream = new MemoryStream(result.ImageBytes!);
+        string caption = fullPrompt.Length > 1024 ? fullPrompt[..1021] + "..." : fullPrompt;
+
+        await bot.SendPhoto(
           chatId,
-          "Failed to generate image. The model may not support this operation.",
+          InputFile.FromStream(stream, "generated.png"),
+          caption: caption,
           replyParameters: new ReplyParameters { MessageId = message.MessageId },
           cancellationToken: ct
         );
         return;
       }
 
-      using var stream = new MemoryStream(imageBytes);
-      string caption = fullPrompt.Length > 1024 ? fullPrompt[..1021] + "..." : fullPrompt;
+      if(result.HasText)
+      {
+        await TelegramMessageHelper.SendChunkedAsync(bot, chatId, result.TextResponse!, message.MessageId, ct);
+        return;
+      }
 
-      await bot.SendPhoto(
+      string errorText = result.ErrorMessage ?? "Failed to generate image. The model may not support this operation.";
+      await bot.SendMessage(
         chatId,
-        InputFile.FromStream(stream, "generated.png"),
-        caption: caption,
+        errorText,
         replyParameters: new ReplyParameters { MessageId = message.MessageId },
         cancellationToken: ct
       );
