@@ -36,7 +36,7 @@ public class BotOptions
 
     public const string DefaultModel = "google/gemini-3-flash-preview";
 
-    public const string DefaultDrawModel = "openai/gpt-image-1";
+    public const string DefaultDrawModel = "openai/gpt-5-image-mini";
 
     public string McpServerUrl { get; private init; } = string.Empty;
 
