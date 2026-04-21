@@ -9,6 +9,15 @@
 | `.claude/rules/agents.md` | Serena usage + what every code-changing agent must read |
 | `.claude/rules/project_structure.md` | Solution layout, projects, deployment |
 
+## Agents
+
+| File | Purpose |
+|---|---|
+| `.claude/agents/code-developer.md` | Implements plan steps / code changes (Sonnet 4.6, medium effort) |
+| `.claude/agents/code-reviewer.md` | Reviews the resulting diff, reports issues only (Sonnet 4.6, medium effort) |
+
+Main agent flow for implementation work: **plan → spawn code-developer → on green build, spawn code-reviewer → feed issues back to code-developer → repeat until clean**.
+
 ## Important
 
 1. Git Commit & Push Rules

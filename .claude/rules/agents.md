@@ -17,11 +17,21 @@ Before making any code changes, **always read**:
 
 After changes, always run `dotnet build src/SlopChat.slnx` to verify compilation.
 
+## Implementation via Code Developer (Mandatory)
+
+When implementing plan steps or any concrete code-change task, the **main agent delegates to the code-developer sub-agent** defined in `.claude/agents/code-developer.md`.
+
+- Spawn one developer invocation per focused task/plan step. Provide the full task context, the relevant plan reference (if any), and explicit scope boundaries.
+- The developer reads project rules itself, makes the change, runs `dotnet build src/SlopChat.slnx` (and `dotnet test` when tests are involved), and reports what it did.
+- The main agent does **not** make code changes in parallel with a running developer, and does **not** skip the developer for "small" changes unless they are trivial single-line edits to non-code files.
+- Model: `claude-sonnet-4.6`, reasoning effort: medium.
+
 ## Post-Change Review (Mandatory)
 
-After every code change that compiles successfully, **spawn a sub-agent** using `.claude/agents/code-reviewer.md` with `agent_type: "code-review"`.
+After the code-developer reports a successful build, **the main agent spawns** the code-reviewer sub-agent defined in `.claude/agents/code-reviewer.md`.
 
 - The reviewer reads project rules independently and checks the diff for bugs, style violations, and regressions.
 - The reviewer **reports issues only** — it does not modify code.
-- The **main agent** is responsible for fixing any issues the reviewer finds.
+- The **main agent** feeds any issues back to the code-developer for fixes, then re-reviews.
 - Do **not** skip this step, even for small changes.
+- Model: `claude-sonnet-4.6`, reasoning effort: medium.
