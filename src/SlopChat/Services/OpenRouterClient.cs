@@ -295,7 +295,7 @@ namespace SlopChat.Services
 
       using HttpResponseMessage response = await _httpClient.PostAsync("chat/completions", content, ct);
       string responseJson = await response.Content.ReadAsStringAsync(ct);
-      _logger.LogDebug("OpenRouter response: {Json}", responseJson);
+      _logger.LogDebug("OpenRouter response: {Json}", responseJson.Trim());
 
       if(!response.IsSuccessStatusCode)
       {

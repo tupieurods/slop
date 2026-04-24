@@ -12,6 +12,7 @@ namespace SlopChat.Services
   {
     private readonly HttpClient _httpClient;
     private readonly HttpClient _downloadClient;
+    private readonly string _apiKey;
     private readonly ILogger<OpenRouterVideoClient> _logger;
     private readonly TimeProvider _timeProvider;
 
@@ -33,6 +34,7 @@ namespace SlopChat.Services
       _httpClient.BaseAddress = new Uri("https://openrouter.ai/api/v1/");
       _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
       _downloadClient = downloadClient;
+      _apiKey = apiKey;
       _timeProvider = timeProvider;
       _logger = logger;
     }
@@ -89,7 +91,7 @@ namespace SlopChat.Services
         using var content = new StringContent(requestJson, Encoding.UTF8, "application/json");
         using HttpResponseMessage submitResponse = await _httpClient.PostAsync("videos", content, ct);
         string submitJson = await submitResponse.Content.ReadAsStringAsync(ct);
-        _logger.LogDebug("Video generation submit response: {Json}", submitJson);
+        _logger.LogDebug("Video generation submit response: {Json}", submitJson.Trim());
 
         if(!submitResponse.IsSuccessStatusCode)
         {
@@ -146,7 +148,7 @@ namespace SlopChat.Services
             ? await _httpClient.GetAsync(new Uri(pollingUrl), linkedCt)
             : await _httpClient.GetAsync($"videos/{videoId}", linkedCt);
           string pollJson = await pollResponse.Content.ReadAsStringAsync(linkedCt);
-          _logger.LogDebug("Video poll response for {Id}: {Json}", videoId, pollJson);
+          _logger.LogDebug("Video poll response for {Id}: {Json}", videoId, pollJson.Trim());
 
           if(!pollResponse.IsSuccessStatusCode)
           {
@@ -198,7 +200,14 @@ namespace SlopChat.Services
 
     private async Task<byte[]> DownloadVideoBytesAsync(string url, CancellationToken ct)
     {
-      using HttpResponseMessage response = await _downloadClient.GetAsync(url, ct);
+      using var request = new HttpRequestMessage(HttpMethod.Get, url);
+      if(Uri.TryCreate(url, UriKind.Absolute, out Uri? parsed)
+        && string.Equals(parsed.Host, "openrouter.ai", StringComparison.OrdinalIgnoreCase))
+      {
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+      }
+
+      using HttpResponseMessage response = await _downloadClient.SendAsync(request, ct);
       response.EnsureSuccessStatusCode();
       return await response.Content.ReadAsByteArrayAsync(ct);
     }
