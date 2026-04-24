@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: Independently reviews uncommitted code changes for the SlopChat project (C# / .NET 10). Spawn after a successful build following any code change. Reports issues only — never modifies code.
-model: claude-sonnet-4.6
+model: claude-opus-4.7
 reasoning_effort: medium
 ---
 
