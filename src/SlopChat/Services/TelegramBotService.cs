@@ -13,6 +13,7 @@ public class TelegramBotService: IHostedService
     private readonly MessageRouter _router;
     private readonly OpenRouterClient _openRouter;
     private readonly OpenRouterVideoClient _openRouterVideo;
+    private readonly IHostApplicationLifetime _appLifetime;
     private readonly ILogger<TelegramBotService> _logger;
     private CancellationTokenSource? _cts;
 
@@ -21,6 +22,7 @@ public class TelegramBotService: IHostedService
       MessageRouter router,
       OpenRouterClient openRouter,
       OpenRouterVideoClient openRouterVideo,
+      IHostApplicationLifetime appLifetime,
       ILogger<TelegramBotService> logger
     )
     {
@@ -28,6 +30,7 @@ public class TelegramBotService: IHostedService
       _router = router;
       _openRouter = openRouter;
       _openRouterVideo = openRouterVideo;
+      _appLifetime = appLifetime;
       _logger = logger;
     }
 
@@ -64,21 +67,32 @@ public class TelegramBotService: IHostedService
       return Task.CompletedTask;
     }
 
-    private async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken ct)
+    private Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken ct)
     {
       if(update.Message is not { } message)
       {
-        return;
+        return Task.CompletedTask;
       }
 
-      try
+      CancellationToken shutdownCt = _appLifetime.ApplicationStopping;
+
+      _ = Task.Run(async () =>
       {
-        await _router.RouteAsync(botClient, message, ct);
-      }
-      catch(Exception ex)
-      {
-        _logger.LogError(ex, "Error handling message from chat {ChatId}", message.Chat.Id);
-      }
+        try
+        {
+          await _router.RouteAsync(botClient, message, shutdownCt);
+        }
+        catch(OperationCanceledException) when(shutdownCt.IsCancellationRequested)
+        {
+          _logger.LogInformation("Message handling cancelled on shutdown for chat {ChatId}", message.Chat.Id);
+        }
+        catch(Exception ex)
+        {
+          _logger.LogError(ex, "Error handling message from chat {ChatId}", message.Chat.Id);
+        }
+      }, shutdownCt);
+
+      return Task.CompletedTask;
     }
 
     private Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken ct)

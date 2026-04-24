@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SlopChat.Configuration;
 using SlopChat.Services;
@@ -14,7 +13,6 @@ namespace SlopChat.Handlers
     private readonly OpenRouterVideoClient _openRouterVideo;
     private readonly ConversationManager _conversationManager;
     private readonly BotOptions _options;
-    private readonly IHostApplicationLifetime _appLifetime;
     private readonly ILogger<CommandHandler> _logger;
 
     public CommandHandler(
@@ -22,7 +20,6 @@ namespace SlopChat.Handlers
       OpenRouterVideoClient openRouterVideo,
       ConversationManager conversationManager,
       BotOptions options,
-      IHostApplicationLifetime appLifetime,
       ILogger<CommandHandler> logger
     )
     {
@@ -30,7 +27,6 @@ namespace SlopChat.Handlers
       _openRouterVideo = openRouterVideo;
       _conversationManager = conversationManager;
       _options = options;
-      _appLifetime = appLifetime;
       _logger = logger;
     }
 
@@ -295,85 +291,80 @@ namespace SlopChat.Handlers
       int originalMessageId = message.MessageId;
       int statusMessageId = statusMessage.MessageId;
 
-      CancellationToken shutdownCt = _appLifetime.ApplicationStopping;
-
-      _ = Task.Run(async () =>
+      try
       {
+        string? firstFrameDataUrl = null;
+        if(replyPhotos is { Length: > 0 })
+        {
+          firstFrameDataUrl = await TelegramMediaDownloader.DownloadPhotoAsDataUrlAsync(bot, replyPhotos, ct);
+        }
+
+        var result = await _openRouterVideo.GenerateVideoAsync(fullPrompt, videoModel, firstFrameDataUrl, ct);
+
+        if(result.HasVideo)
+        {
+          string costStr = result.Cost.HasValue ? $"${result.Cost.Value:F4}" : "unknown";
+          string caption = $"{videoModel}: {costStr}";
+
+          using var stream = new MemoryStream(result.VideoBytes!);
+          await bot.SendVideo(
+            chatId,
+            InputFile.FromStream(stream, "generated.mp4"),
+            caption: caption,
+            replyParameters: new ReplyParameters { MessageId = originalMessageId },
+            cancellationToken: ct
+          );
+        }
+        else
+        {
+          string errorText = result.ErrorMessage ?? "Failed to generate video.";
+          await bot.SendMessage(
+            chatId,
+            errorText,
+            replyParameters: new ReplyParameters { MessageId = originalMessageId },
+            cancellationToken: ct
+          );
+        }
+
         try
         {
-          string? firstFrameDataUrl = null;
-          if(replyPhotos is { Length: > 0 })
-          {
-            firstFrameDataUrl = await TelegramMediaDownloader.DownloadPhotoAsDataUrlAsync(bot, replyPhotos, shutdownCt);
-          }
-
-          var result = await _openRouterVideo.GenerateVideoAsync(fullPrompt, videoModel, firstFrameDataUrl, shutdownCt);
-
-          if(result.HasVideo)
-          {
-            string costStr = result.Cost.HasValue ? $"${result.Cost.Value:F4}" : "unknown";
-            string caption = $"{videoModel}: {costStr}";
-
-            using var stream = new MemoryStream(result.VideoBytes!);
-            await bot.SendVideo(
-              chatId,
-              InputFile.FromStream(stream, "generated.mp4"),
-              caption: caption,
-              replyParameters: new ReplyParameters { MessageId = originalMessageId },
-              cancellationToken: shutdownCt
-            );
-          }
-          else
-          {
-            string errorText = result.ErrorMessage ?? "Failed to generate video.";
-            await bot.SendMessage(
-              chatId,
-              errorText,
-              replyParameters: new ReplyParameters { MessageId = originalMessageId },
-              cancellationToken: shutdownCt
-            );
-          }
-
-          try
-          {
-            await bot.DeleteMessage(chatId, statusMessageId, shutdownCt);
-          }
-          catch(Exception delEx)
-          {
-            _logger.LogWarning(delEx, "Failed to delete status message in chat {ChatId}", chatId);
-          }
+          await bot.DeleteMessage(chatId, statusMessageId, ct);
         }
-        catch(OperationCanceledException) when(shutdownCt.IsCancellationRequested)
+        catch(Exception delEx)
         {
-          _logger.LogInformation("Video generation task cancelled on shutdown for chat {ChatId}", chatId);
+          _logger.LogWarning(delEx, "Failed to delete status message in chat {ChatId}", chatId);
         }
-        catch(Exception ex)
+      }
+      catch(OperationCanceledException) when(ct.IsCancellationRequested)
+      {
+        _logger.LogInformation("Video generation cancelled on shutdown for chat {ChatId}", chatId);
+      }
+      catch(Exception ex)
+      {
+        _logger.LogError(ex, "Video generation error for chat {ChatId}", chatId);
+        try
         {
-          _logger.LogError(ex, "Background video generation error for chat {ChatId}", chatId);
-          try
-          {
-            await bot.SendMessage(
-              chatId,
-              $"Video generation error: {ex.Message}",
-              replyParameters: new ReplyParameters { MessageId = originalMessageId },
-              cancellationToken: CancellationToken.None
-            );
-          }
-          catch(Exception innerEx)
-          {
-            _logger.LogError(innerEx, "Failed to send video error message to chat {ChatId}", chatId);
-          }
-
-          try
-          {
-            await bot.DeleteMessage(chatId, statusMessageId, CancellationToken.None);
-          }
-          catch(Exception delEx)
-          {
-            _logger.LogWarning(delEx, "Failed to delete status message in chat {ChatId}", chatId);
-          }
+          await bot.SendMessage(
+            chatId,
+            $"Video generation error: {ex.Message}",
+            replyParameters: new ReplyParameters { MessageId = originalMessageId },
+            cancellationToken: CancellationToken.None
+          );
         }
-      });
+        catch(Exception innerEx)
+        {
+          _logger.LogError(innerEx, "Failed to send video error message to chat {ChatId}", chatId);
+        }
+
+        try
+        {
+          await bot.DeleteMessage(chatId, statusMessageId, CancellationToken.None);
+        }
+        catch(Exception delEx)
+        {
+          _logger.LogWarning(delEx, "Failed to delete status message in chat {ChatId}", chatId);
+        }
+      }
     }
   }
 }
