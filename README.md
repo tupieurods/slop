@@ -73,11 +73,14 @@ Reply to any message with a `slop` prefix to include it as context:
 |---|---|---|
 | `!reset` | Everyone | Clear conversation history for this chat |
 | `!model` | Everyone | Show the currently active LLM model |
-| `!draw <prompt>` | Everyone | Generate an image from a text prompt (reply to a message to use its text/image as context) |
+| `!draw <prompt>` | Everyone | Generate an image from a text prompt (reply to a message to use its text/image as context). Caption shows `model: $cost`. |
+| `!video <prompt>` | Everyone | Generate a video from a text prompt (reply to a photo to use it as the first frame). Responds immediately and sends the video when ready. |
 | `!models` | Admin | List all available models from OpenRouter |
 | `!set_model <name>` | Admin | Switch to a different model (resets history) |
 | `!draw_models` | Admin | List available image generation models |
 | `!set_draw_model <name>` | Admin | Switch the image generation model (default: `openai/gpt-image-1`) |
+| `!video_models` | Admin | List available video generation models |
+| `!set_video_model <name>` | Admin | Switch the video generation model (default: `bytedance/seedance-2.0-fast`) |
 | `!version` | Admin | Show the build timestamp |
 
 ## Tech Stack

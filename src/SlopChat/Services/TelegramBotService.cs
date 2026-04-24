@@ -12,6 +12,7 @@ public class TelegramBotService: IHostedService
     private readonly TelegramBotClient _bot;
     private readonly MessageRouter _router;
     private readonly OpenRouterClient _openRouter;
+    private readonly OpenRouterVideoClient _openRouterVideo;
     private readonly ILogger<TelegramBotService> _logger;
     private CancellationTokenSource? _cts;
 
@@ -19,12 +20,14 @@ public class TelegramBotService: IHostedService
       TelegramBotClient bot,
       MessageRouter router,
       OpenRouterClient openRouter,
+      OpenRouterVideoClient openRouterVideo,
       ILogger<TelegramBotService> logger
     )
     {
       _bot = bot;
       _router = router;
       _openRouter = openRouter;
+      _openRouterVideo = openRouterVideo;
       _logger = logger;
     }
 
@@ -34,6 +37,9 @@ public class TelegramBotService: IHostedService
 
       var models = await _openRouter.GetImageModelsAsync(cancellationToken);
       _logger.LogInformation("Loaded {Count} image generation models", models.Count);
+
+      var videoModels = await _openRouterVideo.GetVideoModelsAsync(cancellationToken);
+      _logger.LogInformation("Loaded {Count} video generation models", videoModels.Count);
 
       ReceiverOptions receiverOptions = new()
       {

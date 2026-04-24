@@ -41,6 +41,9 @@ public class MessageRouter
       ["!draw_models"] = (HandleDrawModelsCommand, true),
       ["!set_draw_model"] = (HandleSetDrawModelCommand, true),
       ["!draw"] = (HandleDrawCommand, false),
+      ["!video_models"] = (HandleVideoModelsCommand, true),
+      ["!set_video_model"] = (HandleSetVideoModelCommand, true),
+      ["!video"] = (HandleVideoCommand, false),
     };
   }
 
@@ -156,6 +159,33 @@ public class MessageRouter
     }
 
     await _commandHandler.HandleDrawAsync(bot, message, args, ct, replyContext, replyPhotos);
+  }
+
+  private async Task HandleVideoModelsCommand(ITelegramBotClient bot, Message message, string args, CancellationToken ct)
+  {
+    await _commandHandler.HandleVideoModelsAsync(bot, message, ct);
+  }
+
+  private async Task HandleSetVideoModelCommand(ITelegramBotClient bot, Message message, string args, CancellationToken ct)
+  {
+    if(!string.IsNullOrEmpty(args))
+    {
+      await _commandHandler.HandleSetVideoModelAsync(bot, message, args, ct);
+    }
+  }
+
+  private async Task HandleVideoCommand(ITelegramBotClient bot, Message message, string args, CancellationToken ct)
+  {
+    string? replyContext = null;
+    PhotoSize[]? replyPhotos = null;
+    Message? reply = message.ReplyToMessage;
+    if(reply is not null)
+    {
+      replyContext = reply.Text ?? reply.Caption;
+      replyPhotos = reply.Photo;
+    }
+
+    await _commandHandler.HandleVideoAsync(bot, message, args, ct, replyContext, replyPhotos);
   }
 
   private async Task HandleSlopMessageAsync(ITelegramBotClient bot, Message message, string userText, CancellationToken ct)

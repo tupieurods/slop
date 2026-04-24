@@ -182,7 +182,8 @@ namespace SlopChat.Services
         {
           Model = model,
           Messages = messages,
-          Modalities = canOutputText ? ["image", "text"] : ["image"]
+          Modalities = canOutputText ? ["image", "text"] : ["image"],
+          Usage = new UsageOptions { Include = true }
         };
 
         ChatCompletionResponse response = await SendCompletionRequestAsync(request, ct);
@@ -224,7 +225,8 @@ namespace SlopChat.Services
         {
           Model = model,
           Messages = messages,
-          Modalities = canOutputText ? ["image", "text"] : ["image"]
+          Modalities = canOutputText ? ["image", "text"] : ["image"],
+          Usage = new UsageOptions { Include = true }
         };
 
         ChatCompletionResponse response = await SendCompletionRequestAsync(request, ct);
@@ -239,6 +241,7 @@ namespace SlopChat.Services
 
     private ImageGenerationResult ExtractImageFromResponse(ChatCompletionResponse response)
     {
+      double? cost = response.Usage?.Cost;
       ChatChoiceMessage? message = response.Choices.FirstOrDefault()?.Message;
       if(message is null)
       {
@@ -258,7 +261,7 @@ namespace SlopChat.Services
             try
             {
               byte[] bytes = Convert.FromBase64String(base64);
-              return ImageGenerationResult.Success(bytes, message.Content);
+              return ImageGenerationResult.Success(bytes, message.Content, cost);
             }
             catch(FormatException ex)
             {
@@ -275,7 +278,7 @@ namespace SlopChat.Services
       if(!string.IsNullOrEmpty(message.Content))
       {
         _logger.LogWarning("Image generation returned text instead of image");
-        return ImageGenerationResult.TextOnly(message.Content);
+        return ImageGenerationResult.TextOnly(message.Content, cost);
       }
 
       _logger.LogWarning("Image generation response contained no images and no text");

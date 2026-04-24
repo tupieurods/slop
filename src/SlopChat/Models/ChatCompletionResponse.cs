@@ -12,6 +12,15 @@ namespace SlopChat.Models
 
     [JsonPropertyName("model")]
     public string Model { get; set; } = string.Empty;
+
+    [JsonPropertyName("usage")]
+    public CompletionUsage? Usage { get; set; }
+  }
+
+  public class CompletionUsage
+  {
+    [JsonPropertyName("cost")]
+    public double? Cost { get; set; }
   }
 
   public class ChatChoice

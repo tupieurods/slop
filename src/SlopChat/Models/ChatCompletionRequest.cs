@@ -17,5 +17,15 @@ namespace SlopChat.Models
     [JsonPropertyName("modalities")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<string>? Modalities { get; set; }
+
+    [JsonPropertyName("usage")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public UsageOptions? Usage { get; set; }
+  }
+
+  public class UsageOptions
+  {
+    [JsonPropertyName("include")]
+    public bool Include { get; set; }
   }
 }

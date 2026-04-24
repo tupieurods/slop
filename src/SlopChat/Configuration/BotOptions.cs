@@ -38,6 +38,8 @@ public class BotOptions
 
     public const string DefaultDrawModel = "openai/gpt-5-image-mini";
 
+    public const string DefaultVideoModel = "bytedance/seedance-2.0-fast";
+
     public string McpServerUrl { get; private init; } = string.Empty;
 
     public string BuildTime { get; private init; } = "unknown";

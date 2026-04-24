@@ -46,6 +46,14 @@ internal class Program
             options.OpenRouterKey,
             sp.GetRequiredService<ILogger<OpenRouterClient>>()
           ));
+          services.AddSingleton(TimeProvider.System);
+          services.AddSingleton(sp => new OpenRouterVideoClient(
+            new HttpClient { Timeout = TimeSpan.FromMinutes(30) },
+            new HttpClient { Timeout = TimeSpan.FromMinutes(30) },
+            options.OpenRouterKey,
+            sp.GetRequiredService<TimeProvider>(),
+            sp.GetRequiredService<ILogger<OpenRouterVideoClient>>()
+          ));
 
           if(!string.IsNullOrEmpty(options.McpServerUrl))
           {
