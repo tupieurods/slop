@@ -75,11 +75,11 @@ Reply to any message with a `slop` prefix to include it as context:
 | `!model` | Everyone | Show the currently active LLM model |
 | `!draw <prompt>` | Everyone | Generate an image from a text prompt (reply to a message to use its text/image as context). Caption shows `model: $cost`. |
 | `!video <prompt>` | Everyone | Generate a video from a text prompt (reply to a photo to use it as the first frame). Responds immediately and sends the video when ready. |
-| `!models` | Admin | List all available models from OpenRouter |
+| `!models [filter]` | Admin | List all available models from OpenRouter. Optional `filter` does a case-insensitive substring match on the model id. |
 | `!set_model <name>` | Admin | Switch to a different model (resets history) |
-| `!draw_models` | Admin | List available image generation models |
+| `!draw_models [filter]` | Admin | List available image generation models. Optional `filter` does a case-insensitive substring match on the model id. |
 | `!set_draw_model <name>` | Admin | Switch the image generation model (default: `openai/gpt-image-1`) |
-| `!video_models` | Admin | List available video generation models |
+| `!video_models [filter]` | Admin | List available video generation models. Optional `filter` does a case-insensitive substring match on the model id or name. |
 | `!set_video_model <name>` | Admin | Switch the video generation model (default: `bytedance/seedance-2.0-fast`) |
 | `!version` | Admin | Show the build timestamp |
 

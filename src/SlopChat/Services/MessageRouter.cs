@@ -118,7 +118,7 @@ public class MessageRouter
 
   private async Task HandleModelsCommand(ITelegramBotClient bot, Message message, string args, CancellationToken ct)
   {
-    await _commandHandler.HandleModelsAsync(bot, message, ct);
+    await _commandHandler.HandleModelsAsync(bot, message, args, ct);
   }
 
   private async Task HandleVersionCommand(ITelegramBotClient bot, Message message, string args, CancellationToken ct)
@@ -136,7 +136,7 @@ public class MessageRouter
 
   private async Task HandleDrawModelsCommand(ITelegramBotClient bot, Message message, string args, CancellationToken ct)
   {
-    await _commandHandler.HandleDrawModelsAsync(bot, message, ct);
+    await _commandHandler.HandleDrawModelsAsync(bot, message, args, ct);
   }
 
   private async Task HandleSetDrawModelCommand(ITelegramBotClient bot, Message message, string args, CancellationToken ct)
@@ -163,7 +163,7 @@ public class MessageRouter
 
   private async Task HandleVideoModelsCommand(ITelegramBotClient bot, Message message, string args, CancellationToken ct)
   {
-    await _commandHandler.HandleVideoModelsAsync(bot, message, ct);
+    await _commandHandler.HandleVideoModelsAsync(bot, message, args, ct);
   }
 
   private async Task HandleSetVideoModelCommand(ITelegramBotClient bot, Message message, string args, CancellationToken ct)

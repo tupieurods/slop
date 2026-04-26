@@ -64,23 +64,20 @@ namespace SlopChat.Handlers
       );
     }
 
-    public async Task HandleModelsAsync(ITelegramBotClient bot, Message message, CancellationToken ct)
+    public async Task HandleModelsAsync(ITelegramBotClient bot, Message message, string filter, CancellationToken ct)
     {
       var models = await _openRouter.GetModelsAsync(ct);
-
-      if(models.Count == 0)
-      {
-        await bot.SendMessage(
-          message.Chat.Id,
-          "Failed to fetch models list.",
-          replyParameters: new ReplyParameters { MessageId = message.MessageId },
-          cancellationToken: ct
-        );
-        return;
-      }
-
-      string text = "Available models:\n\n" + string.Join('\n', models.Select(m => $"  {m}"));
-      await TelegramMessageHelper.SendChunkedAsync(bot, message.Chat.Id, text, message.MessageId, ct);
+      await SendFilteredModelsAsync(
+        bot,
+        message,
+        filter,
+        models,
+        noun: "models",
+        fetchFailedMessage: "Failed to fetch models list.",
+        matches: (m, f) => m.Contains(f, StringComparison.OrdinalIgnoreCase),
+        renderLine: m => $"  {m}",
+        ct
+      );
     }
 
     public async Task HandleVersionAsync(ITelegramBotClient bot, Message message, CancellationToken ct)
@@ -93,24 +90,20 @@ namespace SlopChat.Handlers
       );
     }
 
-    public async Task HandleDrawModelsAsync(ITelegramBotClient bot, Message message, CancellationToken ct)
+    public async Task HandleDrawModelsAsync(ITelegramBotClient bot, Message message, string filter, CancellationToken ct)
     {
       var models = await _openRouter.GetImageModelsAsync(ct);
-
-      if(models.Count == 0)
-      {
-        await bot.SendMessage(
-          message.Chat.Id,
-          "Failed to fetch image models list.",
-          replyParameters: new ReplyParameters { MessageId = message.MessageId },
-          cancellationToken: ct
-        );
-        return;
-      }
-
-      string text = "Available image generation models:\n\n" +
-        string.Join('\n', models.Select(m => $"  {m.Id}{(m.CanOutputText ? " (text+image)" : " (image only)")}"));
-      await TelegramMessageHelper.SendChunkedAsync(bot, message.Chat.Id, text, message.MessageId, ct);
+      await SendFilteredModelsAsync(
+        bot,
+        message,
+        filter,
+        models,
+        noun: "image generation models",
+        fetchFailedMessage: "Failed to fetch image models list.",
+        matches: (m, f) => m.Id.Contains(f, StringComparison.OrdinalIgnoreCase),
+        renderLine: m => $"  {m.Id}{(m.CanOutputText ? " (text+image)" : " (image only)")}",
+        ct
+      );
     }
 
     public async Task HandleSetDrawModelAsync(ITelegramBotClient bot, Message message, string modelName, CancellationToken ct)
@@ -213,24 +206,22 @@ namespace SlopChat.Handlers
       );
     }
 
-    public async Task HandleVideoModelsAsync(ITelegramBotClient bot, Message message, CancellationToken ct)
+    public async Task HandleVideoModelsAsync(ITelegramBotClient bot, Message message, string filter, CancellationToken ct)
     {
       var models = await _openRouterVideo.GetVideoModelsAsync(ct);
-
-      if(models.Count == 0)
-      {
-        await bot.SendMessage(
-          message.Chat.Id,
-          "Failed to fetch video models list.",
-          replyParameters: new ReplyParameters { MessageId = message.MessageId },
-          cancellationToken: ct
-        );
-        return;
-      }
-
-      string text = "Available video generation models:\n\n" +
-        string.Join('\n', models.Select(m => string.IsNullOrEmpty(m.Name) ? $"  {m.Id}" : $"  {m.Id} — {m.Name}"));
-      await TelegramMessageHelper.SendChunkedAsync(bot, message.Chat.Id, text, message.MessageId, ct);
+      await SendFilteredModelsAsync(
+        bot,
+        message,
+        filter,
+        models,
+        noun: "video generation models",
+        fetchFailedMessage: "Failed to fetch video models list.",
+        matches: (m, f) =>
+          m.Id.Contains(f, StringComparison.OrdinalIgnoreCase) ||
+          (!string.IsNullOrEmpty(m.Name) && m.Name.Contains(f, StringComparison.OrdinalIgnoreCase)),
+        renderLine: m => string.IsNullOrEmpty(m.Name) ? $"  {m.Id}" : $"  {m.Id} — {m.Name}",
+        ct
+      );
     }
 
     public async Task HandleSetVideoModelAsync(ITelegramBotClient bot, Message message, string modelName, CancellationToken ct)
@@ -365,6 +356,52 @@ namespace SlopChat.Handlers
           _logger.LogWarning(delEx, "Failed to delete status message in chat {ChatId}", chatId);
         }
       }
+    }
+
+    private static async Task SendFilteredModelsAsync<T>(
+      ITelegramBotClient bot,
+      Message message,
+      string filter,
+      IReadOnlyList<T> models,
+      string noun,
+      string fetchFailedMessage,
+      Func<T, string, bool> matches,
+      Func<T, string> renderLine,
+      CancellationToken ct
+    )
+    {
+      if(models.Count == 0)
+      {
+        await bot.SendMessage(
+          message.Chat.Id,
+          fetchFailedMessage,
+          replyParameters: new ReplyParameters { MessageId = message.MessageId },
+          cancellationToken: ct
+        );
+        return;
+      }
+
+      string trimmedFilter = filter.Trim();
+      var filtered = trimmedFilter.Length > 0
+        ? models.Where(m => matches(m, trimmedFilter)).ToList()
+        : models.ToList();
+
+      if(filtered.Count == 0)
+      {
+        await bot.SendMessage(
+          message.Chat.Id,
+          $"No {noun} match \"{trimmedFilter}\".",
+          replyParameters: new ReplyParameters { MessageId = message.MessageId },
+          cancellationToken: ct
+        );
+        return;
+      }
+
+      string header = trimmedFilter.Length > 0
+        ? $"Available {noun} matching \"{trimmedFilter}\":\n\n"
+        : $"Available {noun}:\n\n";
+      string text = header + string.Join('\n', filtered.Select(renderLine));
+      await TelegramMessageHelper.SendChunkedAsync(bot, message.Chat.Id, text, message.MessageId, ct);
     }
   }
 }
