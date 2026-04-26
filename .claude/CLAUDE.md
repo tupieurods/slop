@@ -14,7 +14,7 @@
 | File | Purpose |
 |---|---|
 | `.claude/agents/code-developer.md` | Implements plan steps / code changes (Sonnet 4.6, medium effort) |
-| `.claude/agents/code-reviewer.md` | Reviews the resulting diff, reports issues only (Sonnet 4.6, medium effort) |
+| `.claude/agents/code-reviewer.md` | Reviews the resulting diff, reports issues only (Opus 4.7, medium effort) |
 
 Main agent flow for implementation work: **plan → spawn code-developer → on green build, spawn code-reviewer → feed issues back to code-developer → repeat until clean**.
 

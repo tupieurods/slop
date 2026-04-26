@@ -17,7 +17,7 @@ Follow these strict guidelines:
 
 3.  **Modularity & Structure:**
   * Write modular code. Use separate files for different classes, interfaces, enums, etc.
-  * **Always use file-scoped namespaces** (e.g., `namespace MyNamespace;`).
+  * For namespace style, brace placement, indentation, member ordering and all other formatting concerns, follow `.claude/rules/code_style.md` — it is authoritative when this file appears to disagree.
   * Follow SOLID principles where applicable.
   * Do not repeat code. Use methods, classes, generics, or extension methods to encapsulate reusable logic.
 
@@ -47,8 +47,7 @@ Follow these strict guidelines:
 
 10. **Testing:**
   * When generating code that requires testing (e.g., business logic), keep testability in mind (e.g., favor dependency injection).
-  * If asked to generate unit or integration tests, use the **latest version of NUnit**.
-  * For assertions in NUnit, use the constraint-based model: `Assert.That(actual, Is.EqualTo(expected))`.
+  * This project uses **xUnit** (see `src/SlopChat.Tests`). Use xUnit for any new tests, with `[Fact]` / `[Theory]` and `Assert.Equal(expected, actual)` style assertions, matching the conventions of the existing tests.
 
 11. **Scope of Changes:**
   * Strictly limit your code modifications to the immediate scope of the current task. DO NOT refactor or alter any code that is not directly related to the specific functionality you are being asked to implement or modify. Avoid making unsolicited changes or "improvements" outside the defined task.

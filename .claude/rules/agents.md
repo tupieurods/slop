@@ -34,4 +34,4 @@ After the code-developer reports a successful build, **the main agent spawns** t
 - The reviewer **reports issues only** — it does not modify code.
 - The **main agent** feeds any issues back to the code-developer for fixes, then re-reviews.
 - Do **not** skip this step, even for small changes.
-- Model: `claude-sonnet-4.6`, reasoning effort: medium.
+- Model: `claude-opus-4.7`, reasoning effort: medium.
