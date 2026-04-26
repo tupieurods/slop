@@ -25,3 +25,18 @@ Main agent flow for implementation work: **plan → spawn code-developer → on 
 - Never squash/force-push unless explicitly told
 - Never push to an active PR without explicit ask (even in autopilot)
 - Prefer new commits over amending (exceptions: asked to amend, or minor fix to unpushed broken commit)
+
+2. Documentation Maintenance (Mandatory)
+After any code change, the main agent must check whether `README.md` and `.claude/rules/project_structure.md` are still accurate and update them in the same task if the change affects them. No separate request from the user is required.
+
+Update `README.md` when the change affects user-facing behavior, e.g.:
+- A command is added, removed, renamed, or its arguments / semantics change
+- A configuration env var is added, removed, or renamed
+- A documented feature changes meaningfully (new modality, new flow, new default)
+
+Update `.claude/rules/project_structure.md` when the change affects repository/solution layout, e.g.:
+- A project, top-level folder, or key service file is added, removed, renamed, or moved
+- A new responsibility large enough to deserve a row in the "Key Services" table is introduced
+- Build/test/deployment commands or paths change
+
+Purely internal refactors (extracting private helpers, renaming locals, reformatting) do not require doc updates. When in doubt, prefer updating over leaving stale.
