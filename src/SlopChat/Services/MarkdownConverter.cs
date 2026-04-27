@@ -22,6 +22,7 @@ public static class MarkdownConverter
       int? next = TryFencedCodeBlock(markdown, pos, sb, entities)
         ?? TryInlineCode(markdown, pos, sb, entities)
         ?? TryLink(markdown, pos, sb, entities)
+        ?? TryAutolink(markdown, pos, sb, entities)
         ?? TryHeading(markdown, pos, sb, entities)
         ?? TryBold(markdown, pos, sb, entities)
         ?? TryStrikethrough(markdown, pos, sb, entities)
@@ -167,6 +168,90 @@ public static class MarkdownConverter
     return closeParen + 1;
   }
 
+  private static int? TryAutolink(string text, int pos, StringBuilder sb, List<MessageEntity> entities)
+  {
+    if(pos > 0 && char.IsAsciiLetterOrDigit(text[pos - 1]))
+    {
+      return null;
+    }
+
+    bool isHttps = text.AsSpan(pos).StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+    bool isHttp = !isHttps && text.AsSpan(pos).StartsWith("http://", StringComparison.OrdinalIgnoreCase);
+
+    if(!isHttps && !isHttp)
+    {
+      return null;
+    }
+
+    int schemeLength = isHttps ? 8 : 7;
+    int end = pos;
+
+    while(end < text.Length)
+    {
+      char c = text[end];
+      if(char.IsWhiteSpace(c) || c <= '\x1F' || c == '\x7F' || c == '<' || c == '>' || c == '"' || c == '`' || c == '|')
+      {
+        break;
+      }
+      end++;
+    }
+
+    int previous;
+    do
+    {
+      previous = end;
+      while(end > pos && ".,;:!?".Contains(text[end - 1]))
+      {
+        end--;
+      }
+      end = TrimUnbalancedTrailing(text, pos, end, '(', ')');
+      end = TrimUnbalancedTrailing(text, pos, end, '[', ']');
+    } while(end != previous);
+
+    if(end - pos <= schemeLength)
+    {
+      return null;
+    }
+
+    string url = text[pos..end];
+    int entityOffset = sb.Length;
+    sb.Append(url);
+    entities.Add(new MessageEntity
+    {
+      Type = MessageEntityType.Url,
+      Offset = entityOffset,
+      Length = url.Length
+    });
+
+    return end;
+  }
+
+  private static int TrimUnbalancedTrailing(string text, int start, int end, char open, char close)
+  {
+    int opens = 0;
+    int closes = 0;
+
+    for(int i = start; i < end; i++)
+    {
+      if(text[i] == open)
+      {
+        opens++;
+      }
+      else if(text[i] == close)
+      {
+        closes++;
+      }
+    }
+
+    while(end > start && text[end - 1] == close && closes > opens)
+    {
+      end--;
+      closes--;
+    }
+
+    return end;
+  }
+
   private static int? TryHeading(string text, int pos, StringBuilder sb, List<MessageEntity> entities)
   {
     if(text[pos] != '#' || (pos > 0 && text[pos - 1] != '\n'))
@@ -289,7 +374,32 @@ public static class MarkdownConverter
       return null;
     }
 
-    int closeIndex = FindClosingMarker(text, pos + 1, '_');
+    if(pos > 0 && char.IsAsciiLetterOrDigit(text[pos - 1]))
+    {
+      return null;
+    }
+
+    int closeIndex = -1;
+
+    for(int i = pos + 1; i < text.Length; i++)
+    {
+      if(text[i] == '\n')
+      {
+        break;
+      }
+
+      if(text[i] == '_' && i > pos + 1 && text[i - 1] != ' ')
+      {
+        if(i + 1 < text.Length && char.IsAsciiLetterOrDigit(text[i + 1]))
+        {
+          continue;
+        }
+
+        closeIndex = i;
+        break;
+      }
+    }
+
     if(closeIndex <= pos + 1 || text[closeIndex - 1] == '_')
     {
       return null;

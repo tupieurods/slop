@@ -283,4 +283,213 @@ public class MarkdownConverterTests
     Assert.Contains(entities, e => e.Type == MessageEntityType.Pre);
     Assert.Contains(entities, e => e.Type == MessageEntityType.TextLink);
   }
+
+  [Fact]
+  public void Convert_BareUrlWithUnderscores_PreservesUrlAndEmitsUrlEntity()
+  {
+    string url = "https://wheelfront.com/wp-content/uploads/formidable/8/Zito_ZS05_19_with_Mercedes_Benz_C_Class_W205__gallery_1.jpg";
+    var (text, entities) = MarkdownConverter.ToTelegramEntities(url);
+
+    Assert.Equal(url, text);
+    Assert.Single(entities);
+    Assert.Equal(MessageEntityType.Url, entities[0].Type);
+    Assert.Equal(0, entities[0].Offset);
+    Assert.Equal(url.Length, entities[0].Length);
+  }
+
+  [Fact]
+  public void Convert_UrlInSentence_PreservesUrlAndSurroundingText()
+  {
+    var (text, entities) = MarkdownConverter.ToTelegramEntities("Look at https://x.com/a_b_c here.");
+
+    Assert.Equal("Look at https://x.com/a_b_c here.", text);
+    Assert.Single(entities);
+    Assert.Equal(MessageEntityType.Url, entities[0].Type);
+    Assert.Equal(8, entities[0].Offset);
+    Assert.Equal("https://x.com/a_b_c".Length, entities[0].Length);
+  }
+
+  [Fact]
+  public void Convert_UrlWithTrailingPeriod_TrimsPeriod()
+  {
+    var (text, entities) = MarkdownConverter.ToTelegramEntities("see https://x.com/a.");
+
+    Assert.Equal("see https://x.com/a.", text);
+    Assert.Single(entities);
+    Assert.Equal(MessageEntityType.Url, entities[0].Type);
+    Assert.Equal(4, entities[0].Offset);
+    Assert.Equal("https://x.com/a".Length, entities[0].Length);
+  }
+
+  [Fact]
+  public void Convert_UrlInParens_TrimsClosingParen()
+  {
+    var (text, entities) = MarkdownConverter.ToTelegramEntities("(https://x.com/a)");
+
+    Assert.Equal("(https://x.com/a)", text);
+    Assert.Single(entities);
+    Assert.Equal(MessageEntityType.Url, entities[0].Type);
+    Assert.Equal(1, entities[0].Offset);
+    Assert.Equal("https://x.com/a".Length, entities[0].Length);
+  }
+
+  [Fact]
+  public void Convert_UrlWithBalancedParens_KeepsParens()
+  {
+    string url = "https://en.wikipedia.org/wiki/Foo_(bar)";
+    var (text, entities) = MarkdownConverter.ToTelegramEntities(url);
+
+    Assert.Equal(url, text);
+    Assert.Single(entities);
+    Assert.Equal(MessageEntityType.Url, entities[0].Type);
+    Assert.Equal(0, entities[0].Offset);
+    Assert.Equal(url.Length, entities[0].Length);
+  }
+
+  [Fact]
+  public void Convert_MarkdownLink_StillUsesTextLink()
+  {
+    var (text, entities) = MarkdownConverter.ToTelegramEntities("[wiki](https://x.com/a_b)");
+
+    Assert.Equal("wiki", text);
+    Assert.Single(entities);
+    Assert.Equal(MessageEntityType.TextLink, entities[0].Type);
+    Assert.Equal("https://x.com/a_b", entities[0].Url);
+  }
+
+  [Fact]
+  public void Convert_IntraWordUnderscore_NotItalicized()
+  {
+    var (text, entities) = MarkdownConverter.ToTelegramEntities("snake_case_var");
+
+    Assert.Equal("snake_case_var", text);
+    Assert.Empty(entities);
+  }
+
+  [Fact]
+  public void Convert_RegularUnderscoreItalic_StillWorks()
+  {
+    var (text, entities) = MarkdownConverter.ToTelegramEntities("_italic_");
+
+    Assert.Equal("italic", text);
+    Assert.Single(entities);
+    Assert.Equal(MessageEntityType.Italic, entities[0].Type);
+    Assert.Equal(0, entities[0].Offset);
+    Assert.Equal(6, entities[0].Length);
+  }
+
+  [Fact]
+  public void Convert_MixedItalicAndUrl()
+  {
+    var (text, entities) = MarkdownConverter.ToTelegramEntities("Use _italic_ and snake_case in url https://x.com/a_b_c");
+
+    Assert.Equal("Use italic and snake_case in url https://x.com/a_b_c", text);
+    Assert.Equal(2, entities.Count);
+
+    var italicEntity = entities[0];
+    Assert.Equal(MessageEntityType.Italic, italicEntity.Type);
+    Assert.Equal(4, italicEntity.Offset);
+    Assert.Equal(6, italicEntity.Length);
+
+    var urlEntity = entities[1];
+    Assert.Equal(MessageEntityType.Url, urlEntity.Type);
+    Assert.Equal(33, urlEntity.Offset);
+    Assert.Equal("https://x.com/a_b_c".Length, urlEntity.Length);
+  }
+
+  [Fact]
+  public void Convert_UrlWithDotInsideClosingParen_TrimsBoth()
+  {
+    var (text, entities) = MarkdownConverter.ToTelegramEntities("https://x.com/a.)");
+
+    Assert.Equal("https://x.com/a.)", text);
+    Assert.Single(entities);
+    Assert.Equal(MessageEntityType.Url, entities[0].Type);
+    Assert.Equal(0, entities[0].Offset);
+    Assert.Equal("https://x.com/a".Length, entities[0].Length);
+  }
+
+  [Fact]
+  public void Convert_UppercaseHttpsScheme_StillRecognized()
+  {
+    var (text, entities) = MarkdownConverter.ToTelegramEntities("HTTPS://x.com/a_b");
+
+    Assert.Equal("HTTPS://x.com/a_b", text);
+    Assert.Single(entities);
+    Assert.Equal(MessageEntityType.Url, entities[0].Type);
+    Assert.Equal(0, entities[0].Offset);
+    Assert.Equal("HTTPS://x.com/a_b".Length, entities[0].Length);
+  }
+
+  [Fact]
+  public void Convert_UrlAfterNewline_Recognized()
+  {
+    var (text, entities) = MarkdownConverter.ToTelegramEntities("line1\nhttps://x.com/a_b");
+
+    Assert.Equal("line1\nhttps://x.com/a_b", text);
+    Assert.Single(entities);
+    Assert.Equal(MessageEntityType.Url, entities[0].Type);
+    Assert.Equal(6, entities[0].Offset);
+    Assert.Equal("https://x.com/a_b".Length, entities[0].Length);
+  }
+
+  [Fact]
+  public void Convert_TwoUrlsSeparatedBySpace_BothRecognized()
+  {
+    var (text, entities) = MarkdownConverter.ToTelegramEntities("https://a.com/x_y https://b.com/p_q");
+
+    Assert.Equal("https://a.com/x_y https://b.com/p_q", text);
+    Assert.Equal(2, entities.Count);
+    Assert.All(entities, e => Assert.Equal(MessageEntityType.Url, e.Type));
+    Assert.Equal(0, entities[0].Offset);
+    Assert.Equal("https://a.com/x_y".Length, entities[0].Length);
+    Assert.Equal("https://a.com/x_y ".Length, entities[1].Offset);
+    Assert.Equal("https://b.com/p_q".Length, entities[1].Length);
+  }
+
+  [Fact]
+  public void Convert_UrlInsideInlineCode_NotLinkified()
+  {
+    var (text, entities) = MarkdownConverter.ToTelegramEntities("see `https://x.com/a_b` here");
+
+    Assert.Equal("see https://x.com/a_b here", text);
+    Assert.Single(entities);
+    Assert.Equal(MessageEntityType.Code, entities[0].Type);
+    Assert.DoesNotContain(entities, e => e.Type == MessageEntityType.Url);
+  }
+
+  [Fact]
+  public void Convert_IntraWordUnderscoreInItalicCandidate_PreservesText_LocksBehavior()
+  {
+    // Locked-in behavior: "_a_b_" produces italic on "a_b" (closing on the middle _,
+    // skipping because next char is a letter, then closing on the final _).
+    // The outer _ pair wraps "a_b"; the closing _ is consumed. Result text is "a_b".
+    var (text, entities) = MarkdownConverter.ToTelegramEntities("_a_b_");
+
+    Assert.Equal("a_b", text);
+    Assert.Single(entities);
+    Assert.Equal(MessageEntityType.Italic, entities[0].Type);
+    Assert.Equal(0, entities[0].Offset);
+    Assert.Equal("a_b".Length, entities[0].Length);
+  }
+
+  [Fact]
+  public void Convert_AsteriskItalic_StillWorks()
+  {
+    var (text1, entities1) = MarkdownConverter.ToTelegramEntities("*italic*");
+
+    Assert.Equal("italic", text1);
+    Assert.Single(entities1);
+    Assert.Equal(MessageEntityType.Italic, entities1[0].Type);
+    Assert.Equal(0, entities1[0].Offset);
+    Assert.Equal("italic".Length, entities1[0].Length);
+
+    var (text2, entities2) = MarkdownConverter.ToTelegramEntities("un*believ*able");
+
+    Assert.Equal("unbelievable", text2);
+    Assert.Single(entities2);
+    Assert.Equal(MessageEntityType.Italic, entities2[0].Type);
+    Assert.Equal(2, entities2[0].Offset);
+    Assert.Equal("believ".Length, entities2[0].Length);
+  }
 }
