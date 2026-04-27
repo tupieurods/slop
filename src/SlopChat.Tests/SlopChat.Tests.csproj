@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SlopChat\SlopChat.csproj" />
+    <ProjectReference Include="..\SlopMcp\SlopMcp.csproj" />
   </ItemGroup>
 
 </Project>

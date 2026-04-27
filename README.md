@@ -11,7 +11,7 @@ A Telegram group chat bot powered by [OpenRouter](https://openrouter.ai/) — ac
 - **Image Generation** — generate images with `!draw`, supports text-to-image and image-to-image (reply to a photo with a prompt)
 - **Conversation Memory** — per-chat history with automatic summarization to keep token costs down
 - **Multimodal** — understands images: reply to a photo or send one with a caption to ask about it
-- **MCP Tools** — extensible tool calling via Model Context Protocol (search, exchange rates, etc.)
+- **MCP Tools** — extensible tool calling via Model Context Protocol (web search, image search, exchange rates, etc.)
 - **Rich Formatting** — LLM markdown responses are converted to native Telegram formatting (bold, italic, code blocks, links)
 - **Access Control** — admin-only commands, allowlisted chats, private-chat restriction
 - **Docker Deployment** — one-push CI/CD via GitHub Actions → Docker Hub → VPS

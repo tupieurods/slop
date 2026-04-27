@@ -17,10 +17,17 @@ internal class Program
       client.Timeout = TimeSpan.FromSeconds(15);
     });
 
+    builder.Services.AddHttpClient<ImageUrlValidator>(client =>
+    {
+      client.Timeout = TimeSpan.FromSeconds(30);
+      client.DefaultRequestHeaders.UserAgent.ParseAdd("SlopChat-ImageValidator/1.0");
+    });
+
     builder.Services
       .AddMcpServer()
       .WithHttpTransport()
       .WithTools<WebSearchTool>()
+      .WithTools<ImageSearchTool>()
       .WithTools<GetCurrentDateTool>();
 
     var app = builder.Build();
