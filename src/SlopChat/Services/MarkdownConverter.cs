@@ -348,6 +348,17 @@ public static class MarkdownConverter
       return null;
     }
 
+    if(pos + 1 >= text.Length)
+    {
+      return null;
+    }
+
+    char afterOpen = text[pos + 1];
+    if(afterOpen == ' ' || afterOpen == '\t' || afterOpen == '\n' || afterOpen == '*')
+    {
+      return null;
+    }
+
     int closeIndex = FindClosingMarker(text, pos + 1, '*');
     if(closeIndex <= pos + 1)
     {

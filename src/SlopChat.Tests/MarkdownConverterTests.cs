@@ -492,4 +492,52 @@ public class MarkdownConverterTests
     Assert.Equal(2, entities2[0].Offset);
     Assert.Equal("believ".Length, entities2[0].Length);
   }
+
+  [Fact]
+  public void BulletList_Asterisk_WithBoldItem_ProducesBulletAndBold()
+  {
+    var (text, entities) = MarkdownConverter.ToTelegramEntities("List:\n* **Alpha**: first\n* **Beta**: second");
+
+    Assert.Equal("List:\n• Alpha: first\n• Beta: second", text);
+    Assert.Equal(2, entities.Count);
+    Assert.All(entities, e => Assert.Equal(MessageEntityType.Bold, e.Type));
+    Assert.Equal("List:\n• ".Length, entities[0].Offset);
+    Assert.Equal("Alpha".Length, entities[0].Length);
+    Assert.Equal("List:\n• Alpha: first\n• ".Length, entities[1].Offset);
+    Assert.Equal("Beta".Length, entities[1].Length);
+  }
+
+  [Fact]
+  public void ItalicAsterisk_OpenerFollowedBySpace_NotItalicized()
+  {
+    var (text, entities) = MarkdownConverter.ToTelegramEntities("a * b * c");
+
+    Assert.Equal("a * b * c", text);
+    Assert.Empty(entities);
+  }
+
+  [Fact]
+  public void BulletList_Asterisk_MultipleBoldBullets_AllConverted()
+  {
+    string input =
+      "Heading line\n" +
+      "* **One**: alpha details\n" +
+      "* **Two**: beta details\n" +
+      "* **Three**: gamma details";
+
+    var (text, entities) = MarkdownConverter.ToTelegramEntities(input);
+
+    string expected =
+      "Heading line\n" +
+      "• One: alpha details\n" +
+      "• Two: beta details\n" +
+      "• Three: gamma details";
+    Assert.Equal(expected, text);
+    Assert.DoesNotContain('*', text);
+    Assert.Equal(3, entities.Count);
+    Assert.All(entities, e => Assert.Equal(MessageEntityType.Bold, e.Type));
+    Assert.Equal("One", text.Substring(entities[0].Offset, entities[0].Length));
+    Assert.Equal("Two", text.Substring(entities[1].Offset, entities[1].Length));
+    Assert.Equal("Three", text.Substring(entities[2].Offset, entities[2].Length));
+  }
 }
