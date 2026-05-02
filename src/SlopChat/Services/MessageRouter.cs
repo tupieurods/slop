@@ -201,15 +201,19 @@ public class MessageRouter
       replyPhotos = reply.Photo;
       if(replyContext is not null && reply.From is not null)
       {
-        string name = reply.From.FirstName ?? reply.From.Username ?? "Unknown";
-        replyContext = $"{name}: {replyContext}";
+        replyContext = $"{GetDisplayName(reply.From)}: {replyContext}";
       }
     }
 
     PhotoSize[]? directPhotos = message.Photo;
 
-    await _slopHandler.HandleAsync(bot, message, userText, ct, replyContext, replyPhotos, directPhotos);
+    string senderLabel = GetDisplayName(message.From!);
+
+    await _slopHandler.HandleAsync(bot, message, userText, senderLabel, ct, replyContext, replyPhotos, directPhotos);
   }
+
+  private static string GetDisplayName(Telegram.Bot.Types.User user) =>
+    user.Username ?? user.FirstName ?? "Unknown";
 
   private bool IsAuthorized(Message message)
   {

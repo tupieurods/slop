@@ -26,11 +26,11 @@ public class SlopMessageHandler
       _logger = logger;
     }
 
-    public async Task HandleAsync(ITelegramBotClient bot, Message message, string userText, CancellationToken ct, string? replyContext = null, PhotoSize[]? replyPhotos = null, PhotoSize[]? directPhotos = null)
+    public async Task HandleAsync(ITelegramBotClient bot, Message message, string userText, string senderLabel, CancellationToken ct, string? replyContext = null, PhotoSize[]? replyPhotos = null, PhotoSize[]? directPhotos = null)
     {
       long chatId = message.Chat.Id;
 
-      ChatMessage userMessage = await BuildUserMessageAsync(bot, userText, replyContext, replyPhotos, directPhotos, ct);
+      ChatMessage userMessage = await BuildUserMessageAsync(bot, userText, senderLabel, replyContext, replyPhotos, directPhotos, ct);
       _conversationManager.AddMessage(chatId, userMessage);
       await _conversationManager.CompactIfNeededAsync(chatId, ct);
       var history = _conversationManager.GetSnapshot(chatId);
@@ -56,21 +56,23 @@ public class SlopMessageHandler
     private static async Task<ChatMessage> BuildUserMessageAsync(
       ITelegramBotClient bot,
       string userText,
+      string senderLabel,
       string? replyContext,
       PhotoSize[]? replyPhotos,
       PhotoSize[]? directPhotos,
       CancellationToken ct)
     {
+      string labeledUserText = $"{senderLabel}: {userText}";
       bool hasPhotos = (replyPhotos is { Length: > 0 }) || (directPhotos is { Length: > 0 });
 
       if(!hasPhotos && replyContext is null)
       {
-        return ChatMessage.User(userText);
+        return ChatMessage.User(labeledUserText);
       }
 
       string textContent = replyContext is not null
-        ? $"[Replying to message: {replyContext}]\n{userText}"
-        : userText;
+        ? $"[Replying to message: {replyContext}]\n{labeledUserText}"
+        : labeledUserText;
 
       if(!hasPhotos)
       {
