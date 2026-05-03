@@ -51,7 +51,7 @@ namespace SlopChat.Services
         }
 
         var workingMessages = new List<ChatMessage>(messages);
-        const int maxIterations = 5;
+        const int maxIterations = 8;
         int toolCallCount = 0;
 
         for(int i = 0; i < maxIterations; i++)
@@ -70,39 +70,96 @@ namespace SlopChat.Services
           _logger.LogDebug("Finish reason: {FinishReason}, has tool calls: {HasToolCalls}",
             choice.FinishReason, choice.Message?.ToolCalls is not null);
 
-          if(choice.FinishReason != "tool_calls" || toolExecutor is null || choice.Message?.ToolCalls is null)
+          bool isToolCallFinish = choice.FinishReason == "tool_calls";
+          bool hasToolCallsInMessage = choice.Message?.ToolCalls is { Count: > 0 };
+
+          if(isToolCallFinish && hasToolCallsInMessage && toolExecutor is not null)
           {
-            string content = choice.Message?.Content ?? string.Empty;
-            return toolCallCount > 0
-              ? string.Concat(Enumerable.Repeat("🔧", toolCallCount)) + " " + content
-              : content;
+            workingMessages.Add(ChatMessage.Assistant(choice.Message!.ToolCalls!));
+            foreach(Models.ToolCall toolCall in choice.Message!.ToolCalls!)
+            {
+              _logger.LogInformation("Executing tool {ToolName}", toolCall.Function.Name);
+              string result = await toolExecutor.ExecuteAsync(toolCall.Function.Name, toolCall.Function.Arguments, ct);
+              workingMessages.Add(ChatMessage.Tool(toolCall.Id, result));
+              toolCallCount++;
+            }
+            continue;
           }
 
-          workingMessages.Add(ChatMessage.Assistant(choice.Message.ToolCalls));
-
-          foreach(Models.ToolCall toolCall in choice.Message.ToolCalls)
+          if(isToolCallFinish && !hasToolCallsInMessage)
           {
-            _logger.LogInformation("Executing tool {ToolName}", toolCall.Function.Name);
-            string result = await toolExecutor.ExecuteAsync(toolCall.Function.Name, toolCall.Function.Arguments, ct);
-            workingMessages.Add(ChatMessage.Tool(toolCall.Id, result));
-            toolCallCount++;
+            _logger.LogWarning(
+              "Empty model response recovery: finish_reason=tool_calls but ToolCalls is null/empty, model={Model}, finishReason={FinishReason}, nativeFinishReason={NativeFinishReason}; routing to force-final",
+              model, choice.FinishReason, choice.NativeFinishReason);
+            break;
           }
+
+          if(string.IsNullOrEmpty(choice.Message?.Content))
+          {
+            string resolveLevel = !string.IsNullOrEmpty(choice.Message?.Reasoning) ? "4 (reasoning)" : "5 (placeholder)";
+            _logger.LogWarning(
+              "Empty model response recovery: in-loop content empty, model={Model}, finishReason={FinishReason}, nativeFinishReason={NativeFinishReason}; using level-{Level}",
+              model, choice.FinishReason, choice.NativeFinishReason, resolveLevel);
+          }
+
+          return ResolveFinalText(choice.Message, toolCallCount);
         }
 
         _logger.LogWarning("Reached max tool call iterations ({Max}), forcing final response", maxIterations);
-        var finalRequest = new ChatCompletionRequest
+
+        const string nudge = "You have used the tool budget. Based ONLY on the tool results above, give the user a final plain-text answer now. Do not call any more tools.";
+
+        var level2Messages = new List<ChatMessage>(workingMessages) { ChatMessage.User(nudge) };
+        var level2Request = new ChatCompletionRequest
         {
           Model = model,
-          Messages = workingMessages
+          Messages = level2Messages,
+          Tools = tools,
+          ToolChoice = "none"
         };
+        ChatCompletionResponse level2Response = await SendCompletionRequestAsync(level2Request, ct);
+        ChatChoice level2Choice = level2Response.Choices.FirstOrDefault()
+                                  ?? throw new InvalidOperationException("OpenRouter returned no choices in level-2 retry");
+        ChatChoiceMessage? level2Message = level2Choice.Message;
 
-        ChatCompletionResponse finalResponse = await SendCompletionRequestAsync(finalRequest, ct);
-        ChatChoice finalChoice = finalResponse.Choices.FirstOrDefault()
-                                 ?? throw new InvalidOperationException("OpenRouter returned no choices");
-        string finalContent = finalChoice.Message?.Content ?? string.Empty;
-        return toolCallCount > 0
-          ? string.Concat(Enumerable.Repeat("🔧", toolCallCount)) + " " + finalContent
-          : finalContent;
+        if(!string.IsNullOrEmpty(level2Message?.Content))
+        {
+          _logger.LogWarning(
+            "Empty model response recovery: level-2 (force-final, tool_choice=none) produced text, model={Model}, finishReason={FinishReason}, nativeFinishReason={NativeFinishReason}",
+            model, level2Choice.FinishReason, level2Choice.NativeFinishReason);
+          return ResolveFinalText(level2Message, toolCallCount);
+        }
+
+        _logger.LogWarning(
+          "Empty model response recovery: level-2 returned empty content, model={Model}, finishReason={FinishReason}, nativeFinishReason={NativeFinishReason}; trying level-3",
+          model, level2Choice.FinishReason, level2Choice.NativeFinishReason);
+
+        var level3Messages = new List<ChatMessage>(workingMessages) { ChatMessage.System(nudge) };
+        var level3Request = new ChatCompletionRequest
+        {
+          Model = model,
+          Messages = level3Messages
+        };
+        ChatCompletionResponse level3Response = await SendCompletionRequestAsync(level3Request, ct);
+        ChatChoice level3Choice = level3Response.Choices.FirstOrDefault()
+                                  ?? throw new InvalidOperationException("OpenRouter returned no choices in level-3 retry");
+        ChatChoiceMessage? level3Message = level3Choice.Message;
+
+        if(!string.IsNullOrEmpty(level3Message?.Content))
+        {
+          _logger.LogWarning(
+            "Empty model response recovery: level-3 (no tools, system nudge) produced text, model={Model}, finishReason={FinishReason}, nativeFinishReason={NativeFinishReason}",
+            model, level3Choice.FinishReason, level3Choice.NativeFinishReason);
+          return ResolveFinalText(level3Message, toolCallCount);
+        }
+
+        ChatChoiceMessage? bestFallbackMessage = !string.IsNullOrEmpty(level3Message?.Reasoning) ? level3Message : level2Message;
+        string level45 = !string.IsNullOrEmpty(bestFallbackMessage?.Reasoning) ? "4 (reasoning)" : "5 (placeholder)";
+        _logger.LogWarning(
+          "Empty model response recovery: level-3 returned empty content, model={Model}, finishReason={FinishReason}, nativeFinishReason={NativeFinishReason}; using level-{Level}",
+          model, level3Choice.FinishReason, level3Choice.NativeFinishReason, level45);
+
+        return ResolveFinalText(bestFallbackMessage, toolCallCount);
       }
       catch(Exception ex)
       {
@@ -285,6 +342,26 @@ namespace SlopChat.Services
       return ImageGenerationResult.Failure("Model returned empty response.");
     }
 
+    internal static string ResolveFinalText(ChatChoiceMessage? message, int toolCallCount)
+    {
+      string text;
+      if(!string.IsNullOrEmpty(message?.Content))
+      {
+        text = message.Content;
+      }
+      else if(!string.IsNullOrEmpty(message?.Reasoning))
+      {
+        text = "💭 " + message.Reasoning;
+      }
+      else
+      {
+        text = "(no response)";
+      }
+
+      return toolCallCount > 0
+        ? string.Concat(Enumerable.Repeat("🔧", toolCallCount)) + " " + text
+        : text;
+    }
 
     private async Task<ChatCompletionResponse> SendCompletionRequestAsync(ChatCompletionRequest request, CancellationToken ct)
     {

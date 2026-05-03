@@ -28,6 +28,9 @@ namespace SlopChat.Models
     [JsonPropertyName("finish_reason")]
     public string? FinishReason { get; set; }
 
+    [JsonPropertyName("native_finish_reason")]
+    public string? NativeFinishReason { get; set; }
+
     [JsonPropertyName("message")]
     public ChatChoiceMessage? Message { get; set; }
   }
@@ -39,6 +42,9 @@ namespace SlopChat.Models
 
     [JsonPropertyName("content")]
     public string? Content { get; set; }
+
+    [JsonPropertyName("reasoning")]
+    public string? Reasoning { get; set; }
 
     [JsonPropertyName("tool_calls")]
     public List<ToolCall>? ToolCalls { get; set; }
