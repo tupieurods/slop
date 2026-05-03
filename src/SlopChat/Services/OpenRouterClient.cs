@@ -94,12 +94,27 @@ namespace SlopChat.Services
             break;
           }
 
-          if(string.IsNullOrEmpty(choice.Message?.Content))
+          if(!string.IsNullOrEmpty(choice.Message?.Content))
           {
-            string resolveLevel = !string.IsNullOrEmpty(choice.Message?.Reasoning) ? "4 (reasoning)" : "5 (placeholder)";
+            return ResolveFinalText(choice.Message, toolCallCount);
+          }
+
+          if(!string.IsNullOrEmpty(choice.Message?.Reasoning))
+          {
+            string? summarized = await TrySummarizeReasoningAsync(workingMessages, choice.Message!.Reasoning!, model, toolCallCount, ct);
+            if(summarized is not null)
+            {
+              return summarized;
+            }
             _logger.LogWarning(
               "Empty model response recovery: in-loop content empty, model={Model}, finishReason={FinishReason}, nativeFinishReason={NativeFinishReason}; using level-{Level}",
-              model, choice.FinishReason, choice.NativeFinishReason, resolveLevel);
+              model, choice.FinishReason, choice.NativeFinishReason, "4 (reasoning)");
+          }
+          else
+          {
+            _logger.LogWarning(
+              "Empty model response recovery: in-loop content empty, model={Model}, finishReason={FinishReason}, nativeFinishReason={NativeFinishReason}; using level-{Level}",
+              model, choice.FinishReason, choice.NativeFinishReason, "5 (placeholder)");
           }
 
           return ResolveFinalText(choice.Message, toolCallCount);
@@ -154,6 +169,17 @@ namespace SlopChat.Services
         }
 
         ChatChoiceMessage? bestFallbackMessage = !string.IsNullOrEmpty(level3Message?.Reasoning) ? level3Message : level2Message;
+        string? bestReasoning = bestFallbackMessage?.Reasoning;
+
+        if(!string.IsNullOrEmpty(bestReasoning))
+        {
+          string? summarized = await TrySummarizeReasoningAsync(workingMessages, bestReasoning, model, toolCallCount, ct);
+          if(summarized is not null)
+          {
+            return summarized;
+          }
+        }
+
         string level45 = !string.IsNullOrEmpty(bestFallbackMessage?.Reasoning) ? "4 (reasoning)" : "5 (placeholder)";
         _logger.LogWarning(
           "Empty model response recovery: level-3 returned empty content, model={Model}, finishReason={FinishReason}, nativeFinishReason={NativeFinishReason}; using level-{Level}",
@@ -340,6 +366,57 @@ namespace SlopChat.Services
 
       _logger.LogWarning("Image generation response contained no images and no text");
       return ImageGenerationResult.Failure("Model returned empty response.");
+    }
+
+    private async Task<string?> TrySummarizeReasoningAsync(
+      List<ChatMessage> history,
+      string reasoningText,
+      string model,
+      int toolCallCount,
+      CancellationToken ct)
+    {
+      try
+      {
+        var newMessages = new List<ChatMessage>(history)
+        {
+          ChatMessage.System(
+            "The user asked a question and the assistant produced internal reasoning but failed to deliver a final answer. Below the user will paste that raw reasoning. Produce a clear, concise final answer for the user in plain text. Do not call any tools. Do not repeat or quote the reasoning itself."),
+          ChatMessage.User(
+            "Here is the raw reasoning from your previous attempt. Based on it, give the user a final answer now:\n\n" + reasoningText)
+        };
+
+        var request = new ChatCompletionRequest
+        {
+          Model = model,
+          Messages = newMessages,
+          Tools = null,
+          ToolChoice = "none"
+        };
+
+        ChatCompletionResponse response = await SendCompletionRequestAsync(request, ct);
+        ChatChoice? choice = response.Choices.FirstOrDefault();
+        string? content = choice?.Message?.Content;
+
+        if(!string.IsNullOrEmpty(content))
+        {
+          _logger.LogInformation(
+            "Empty model response recovery: summarize-reasoning produced text, model={Model}, finishReason={FinishReason}",
+            model, choice!.FinishReason);
+          return toolCallCount > 0
+            ? string.Concat(Enumerable.Repeat("🔧", toolCallCount)) + " " + content
+            : content;
+        }
+
+        _logger.LogWarning(
+          "Empty model response recovery: summarize-reasoning returned empty content, model={Model}, finishReason={FinishReason}",
+          model, choice?.FinishReason);
+        return null;
+      }
+      catch(Exception ex)
+      {
+        _logger.LogWarning(ex, "Empty model response recovery: summarize-reasoning threw an exception, model={Model}", model);
+        return null;
+      }
     }
 
     internal static string ResolveFinalText(ChatChoiceMessage? message, int toolCallCount)
