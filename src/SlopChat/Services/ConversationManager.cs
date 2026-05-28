@@ -17,8 +17,9 @@ namespace SlopChat.Services
     private readonly BotOptions _options;
     private readonly ILogger<ConversationManager> _logger;
     private readonly Lock _lock = new();
-    private const int CompactThresholdPairs = 40;
-    private const int KeepRecentPairs = 10;
+    private string _summaryModel = "google/gemini-2.5-flash-lite";
+    private const int CompactThresholdPairs = 30;
+    private const int KeepRecentPairs = 8;
 
     public ConversationManager(OpenRouterClient openRouter, BotOptions options, ILogger<ConversationManager> logger)
     {
@@ -47,7 +48,12 @@ namespace SlopChat.Services
     {
       lock(_lock)
       {
-        GetHistory(chatId).Add(message);
+        var history = GetHistory(chatId);
+        history.Add(message);
+        if(message.Role == "assistant")
+        {
+          StripImagesFromEarlierMessages(history);
+        }
       }
     }
 
@@ -55,7 +61,9 @@ namespace SlopChat.Services
     {
       lock(_lock)
       {
-        GetHistory(chatId).Add(ChatMessage.Assistant(content));
+        var history = GetHistory(chatId);
+        history.Add(ChatMessage.Assistant(content));
+        StripImagesFromEarlierMessages(history);
       }
     }
 
@@ -96,6 +104,22 @@ namespace SlopChat.Services
       _videoModels[chatId] = model;
     }
 
+    public string GetSummaryModel()
+    {
+      lock(_lock)
+      {
+        return _summaryModel;
+      }
+    }
+
+    public void SetSummaryModel(string model)
+    {
+      lock(_lock)
+      {
+        _summaryModel = model;
+      }
+    }
+
     public async Task CompactIfNeededAsync(long chatId, CancellationToken ct)
     {
       int summarizeCount;
@@ -128,9 +152,20 @@ namespace SlopChat.Services
 
       try
       {
-        string model = GetModel(chatId);
+        string summaryModel = GetSummaryModel();
+        string chatModel = GetModel(chatId);
         List<ChatMessage> request = BuildSummarizationRequest(toSummarize);
-        string summary = await _openRouter.GetCompletionAsync(request, model, ct);
+
+        string summary;
+        try
+        {
+          summary = await _openRouter.GetCompletionAsync(request, summaryModel, ct);
+        }
+        catch(Exception ex)
+        {
+          _logger.LogWarning(ex, "Summarization with model {SummaryModel} failed, retrying with {ChatModel}", summaryModel, chatModel);
+          summary = await _openRouter.GetCompletionAsync(request, chatModel, ct);
+        }
 
         lock(_lock)
         {
@@ -151,7 +186,30 @@ namespace SlopChat.Services
       }
     }
 
-    private List<ChatMessage> CreateInitialHistory() => [ChatMessage.System(_options.SystemPrompt)];
+    private List<ChatMessage> CreateInitialHistory() => [ChatMessage.System(_options.SystemPrompt, ephemeral: true)];
+
+    private static void StripImagesFromEarlierMessages(List<ChatMessage> history)
+    {
+      int lastUserIdx = -1;
+      for(int i = history.Count - 1; i >= 0; i--)
+      {
+        if(history[i].Role == "user") { lastUserIdx = i; break; }
+      }
+
+      if(lastUserIdx < 0)
+      {
+        return;
+      }
+
+      for(int i = 0; i < lastUserIdx; i++)
+      {
+        if(history[i].Role == "user" && history[i].Content is List<ContentPart> parts)
+        {
+          string text = parts.FirstOrDefault(p => p.Type == "text")?.Text ?? "[image]";
+          history[i] = ChatMessage.User(text);
+        }
+      }
+    }
 
     private static List<ChatMessage> BuildSummarizationRequest(List<ChatMessage> messages)
     {

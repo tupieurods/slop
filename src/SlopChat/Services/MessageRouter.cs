@@ -44,6 +44,8 @@ public class MessageRouter
       ["!video_models"] = (HandleVideoModelsCommand, true),
       ["!set_video_model"] = (HandleSetVideoModelCommand, true),
       ["!video"] = (HandleVideoCommand, false),
+      ["!summarymodel"] = (HandleSummaryModelCommand, false),
+      ["!setsummarymodel"] = (HandleSetSummaryModelCommand, true),
     };
   }
 
@@ -186,6 +188,19 @@ public class MessageRouter
     }
 
     await _commandHandler.HandleVideoAsync(bot, message, args, ct, replyContext, replyPhotos);
+  }
+
+  private async Task HandleSummaryModelCommand(ITelegramBotClient bot, Message message, string args, CancellationToken ct)
+  {
+    await _commandHandler.HandleSummaryModelAsync(bot, message, ct);
+  }
+
+  private async Task HandleSetSummaryModelCommand(ITelegramBotClient bot, Message message, string args, CancellationToken ct)
+  {
+    if(!string.IsNullOrEmpty(args))
+    {
+      await _commandHandler.HandleSetSummaryModelAsync(bot, message, args, ct);
+    }
   }
 
   private async Task HandleSlopMessageAsync(ITelegramBotClient bot, Message message, string userText, CancellationToken ct)

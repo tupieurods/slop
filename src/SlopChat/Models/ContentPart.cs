@@ -15,7 +15,16 @@ public class ContentPart
   [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
   public ImageUrlContent? ImageUrl { get; private init; }
 
-  public static ContentPart TextContent(string text) => new() { Type = "text", Text = text };
+  [JsonPropertyName("cache_control")]
+  [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+  public CacheControlContent? CacheControl { get; private init; }
+
+  public static ContentPart TextContent(string text, bool ephemeral = false) => new()
+  {
+    Type = "text",
+    Text = text,
+    CacheControl = ephemeral ? new CacheControlContent() : null
+  };
 
   public static ContentPart Image(string dataUrl) => new()
   {
@@ -28,4 +37,10 @@ public class ImageUrlContent
 {
   [JsonPropertyName("url")]
   public string Url { get; init; } = string.Empty;
+}
+
+public class CacheControlContent
+{
+  [JsonPropertyName("type")]
+  public string Type { get; private init; } = "ephemeral";
 }

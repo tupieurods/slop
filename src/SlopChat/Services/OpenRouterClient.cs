@@ -26,7 +26,7 @@ namespace SlopChat.Services
       _logger = logger;
     }
 
-    public async Task<string> GetCompletionAsync(
+    public virtual async Task<string> GetCompletionAsync(
       List<ChatMessage> messages,
       string model,
       CancellationToken ct,
@@ -60,7 +60,8 @@ namespace SlopChat.Services
           {
             Model = model,
             Messages = workingMessages,
-            Tools = tools
+            Tools = tools,
+            MaxTokens = 4096
           };
 
           ChatCompletionResponse response = await SendCompletionRequestAsync(request, ct);
@@ -130,7 +131,8 @@ namespace SlopChat.Services
           Model = model,
           Messages = level2Messages,
           Tools = tools,
-          ToolChoice = "none"
+          ToolChoice = "none",
+          MaxTokens = 4096
         };
         ChatCompletionResponse level2Response = await SendCompletionRequestAsync(level2Request, ct);
         ChatChoice level2Choice = level2Response.Choices.FirstOrDefault()
@@ -145,47 +147,12 @@ namespace SlopChat.Services
           return ResolveFinalText(level2Message, toolCallCount);
         }
 
+        string level45 = !string.IsNullOrEmpty(level2Message?.Reasoning) ? "4 (reasoning)" : "5 (placeholder)";
         _logger.LogWarning(
-          "Empty model response recovery: level-2 returned empty content, model={Model}, finishReason={FinishReason}, nativeFinishReason={NativeFinishReason}; trying level-3",
-          model, level2Choice.FinishReason, level2Choice.NativeFinishReason);
+          "Empty model response recovery: level-2 returned empty content, model={Model}, finishReason={FinishReason}, nativeFinishReason={NativeFinishReason}; using level-{Level}",
+          model, level2Choice.FinishReason, level2Choice.NativeFinishReason, level45);
 
-        var level3Messages = new List<ChatMessage>(workingMessages) { ChatMessage.System(nudge) };
-        var level3Request = new ChatCompletionRequest
-        {
-          Model = model,
-          Messages = level3Messages
-        };
-        ChatCompletionResponse level3Response = await SendCompletionRequestAsync(level3Request, ct);
-        ChatChoice level3Choice = level3Response.Choices.FirstOrDefault()
-                                  ?? throw new InvalidOperationException("OpenRouter returned no choices in level-3 retry");
-        ChatChoiceMessage? level3Message = level3Choice.Message;
-
-        if(!string.IsNullOrEmpty(level3Message?.Content))
-        {
-          _logger.LogWarning(
-            "Empty model response recovery: level-3 (no tools, system nudge) produced text, model={Model}, finishReason={FinishReason}, nativeFinishReason={NativeFinishReason}",
-            model, level3Choice.FinishReason, level3Choice.NativeFinishReason);
-          return ResolveFinalText(level3Message, toolCallCount);
-        }
-
-        ChatChoiceMessage? bestFallbackMessage = !string.IsNullOrEmpty(level3Message?.Reasoning) ? level3Message : level2Message;
-        string? bestReasoning = bestFallbackMessage?.Reasoning;
-
-        if(!string.IsNullOrEmpty(bestReasoning))
-        {
-          string? summarized = await TrySummarizeReasoningAsync(workingMessages, bestReasoning, model, toolCallCount, ct);
-          if(summarized is not null)
-          {
-            return summarized;
-          }
-        }
-
-        string level45 = !string.IsNullOrEmpty(bestFallbackMessage?.Reasoning) ? "4 (reasoning)" : "5 (placeholder)";
-        _logger.LogWarning(
-          "Empty model response recovery: level-3 returned empty content, model={Model}, finishReason={FinishReason}, nativeFinishReason={NativeFinishReason}; using level-{Level}",
-          model, level3Choice.FinishReason, level3Choice.NativeFinishReason, level45);
-
-        return ResolveFinalText(bestFallbackMessage, toolCallCount);
+        return ResolveFinalText(level2Message, toolCallCount);
       }
       catch(Exception ex)
       {
@@ -390,7 +357,8 @@ namespace SlopChat.Services
           Model = model,
           Messages = newMessages,
           Tools = null,
-          ToolChoice = "none"
+          ToolChoice = "none",
+          MaxTokens = 4096
         };
 
         ChatCompletionResponse response = await SendCompletionRequestAsync(request, ct);

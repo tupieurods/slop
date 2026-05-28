@@ -20,9 +20,22 @@ namespace SlopChat.Models
     public string? ToolCallId { get; set; }
 
     [JsonIgnore]
-    public string? TextContent => Content as string;
+    public string? TextContent => Content switch
+    {
+      string s => s,
+      List<ContentPart> parts => parts.FirstOrDefault(p => p.Type == "text")?.Text,
+      _ => null
+    };
 
     public static ChatMessage System(string content) => new() { Role = "system", Content = content };
+
+    public static ChatMessage System(string content, bool ephemeral) => new()
+    {
+      Role = "system",
+      Content = ephemeral
+        ? (object)new List<ContentPart> { ContentPart.TextContent(content, ephemeral: true) }
+        : content
+    };
     public static ChatMessage User(string content) => new() { Role = "user", Content = content };
     public static ChatMessage Assistant(string content) => new() { Role = "assistant", Content = content };
 

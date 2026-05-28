@@ -241,6 +241,28 @@ namespace SlopChat.Handlers
       );
     }
 
+    public async Task HandleSummaryModelAsync(ITelegramBotClient bot, Message message, CancellationToken ct)
+    {
+      await bot.SendMessage(
+        message.Chat.Id,
+        $"Current summary model: {_conversationManager.GetSummaryModel()}",
+        replyParameters: new ReplyParameters { MessageId = message.MessageId },
+        cancellationToken: ct
+      );
+    }
+
+    public async Task HandleSetSummaryModelAsync(ITelegramBotClient bot, Message message, string modelName, CancellationToken ct)
+    {
+      _conversationManager.SetSummaryModel(modelName);
+      _logger.LogInformation("Summary model changed to {Model} by admin {UserId}", modelName, message.From?.Id);
+      await bot.SendMessage(
+        message.Chat.Id,
+        $"Summary model set to: {modelName}",
+        replyParameters: new ReplyParameters { MessageId = message.MessageId },
+        cancellationToken: ct
+      );
+    }
+
     public async Task HandleVideoAsync(
       ITelegramBotClient bot,
       Message message,
