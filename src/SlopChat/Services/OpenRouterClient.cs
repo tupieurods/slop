@@ -60,8 +60,7 @@ namespace SlopChat.Services
           {
             Model = model,
             Messages = workingMessages,
-            Tools = tools,
-            MaxTokens = 4096
+            Tools = tools
           };
 
           ChatCompletionResponse response = await SendCompletionRequestAsync(request, ct);
@@ -131,8 +130,7 @@ namespace SlopChat.Services
           Model = model,
           Messages = level2Messages,
           Tools = tools,
-          ToolChoice = "none",
-          MaxTokens = 4096
+          ToolChoice = "none"
         };
         ChatCompletionResponse level2Response = await SendCompletionRequestAsync(level2Request, ct);
         ChatChoice level2Choice = level2Response.Choices.FirstOrDefault()
@@ -357,8 +355,7 @@ namespace SlopChat.Services
           Model = model,
           Messages = newMessages,
           Tools = null,
-          ToolChoice = "none",
-          MaxTokens = 4096
+          ToolChoice = "none"
         };
 
         ChatCompletionResponse response = await SendCompletionRequestAsync(request, ct);
