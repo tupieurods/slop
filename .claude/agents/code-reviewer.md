@@ -19,6 +19,14 @@ Read and internalize these project rules:
 
 1. `.claude/rules/developer.md` — coding standards, .NET 10 / C# 14, patterns
 2. `.claude/rules/code_style.md` — formatting, naming, member ordering
+3. `.claude/rules/agents.md` — Serena usage and shared agent guidelines
+
+## Tools
+
+- Use **Serena** tools for reading and navigating `.cs` code (symbols, references, overviews) instead of `grep`/`glob`.
+- Activate the `slop` project in Serena if it is not already active.
+- Use `view` for non-C# files (configs, markdown, csproj, etc.).
+- Do **not** use Serena's editing tools — you report issues only, you never modify code.
 
 ## What to Review
 

@@ -49,7 +49,8 @@ namespace SlopChat.Tests
       );
 
       var client = CreateClient(handler);
-      var results = await client.SearchImagesAsync("cat", 5);
+      var outcome = await client.SearchImagesAsync("cat", 5);
+      var results = outcome.Results;
 
       Assert.Equal(2, results.Count);
 
@@ -94,10 +95,10 @@ namespace SlopChat.Tests
       );
 
       var client = CreateClient(handler);
-      var results = await client.SearchImagesAsync("test", 5);
+      var outcome = await client.SearchImagesAsync("test", 5);
 
-      Assert.Single(results);
-      Assert.Equal("Has Image", results[0].Title);
+      Assert.Single(outcome.Results);
+      Assert.Equal("Has Image", outcome.Results[0].Title);
     }
 
     [Fact]
@@ -108,9 +109,9 @@ namespace SlopChat.Tests
       );
 
       var client = CreateClient(handler);
-      var results = await client.SearchImagesAsync("test", 5);
+      var outcome = await client.SearchImagesAsync("test", 5);
 
-      Assert.Empty(results);
+      Assert.Empty(outcome.Results);
     }
 
     [Fact]
@@ -134,9 +135,9 @@ namespace SlopChat.Tests
       );
 
       var client = CreateClient(handler);
-      var results = await client.SearchImagesAsync("test", 2);
+      var outcome = await client.SearchImagesAsync("test", 2);
 
-      Assert.Equal(2, results.Count);
+      Assert.Equal(2, outcome.Results.Count);
     }
 
     [Fact]

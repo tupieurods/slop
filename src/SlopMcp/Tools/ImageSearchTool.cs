@@ -30,7 +30,25 @@ namespace SlopMcp.Tools {
       }
 
       int fetchCount = Math.Min(maxResults * 3, 30);
-      var candidates = await _searXng.SearchImagesAsync(query, fetchCount, ct);
+      var outcome = await _searXng.SearchImagesAsync(query, fetchCount, ct);
+
+      if(outcome.TransportError is not null)
+      {
+        return $"Search backend error: {outcome.TransportError}. Try again later.";
+      }
+
+      if(outcome.HttpStatus is not null && ((int)outcome.HttpStatus.Value < 200 || (int)outcome.HttpStatus.Value >= 300))
+      {
+        return $"Search backend error (HTTP {(int)outcome.HttpStatus.Value}). Try again later.";
+      }
+
+      if(outcome.Results.Count == 0 && outcome.UnresponsiveEngines.Count > 0)
+      {
+        string engines = string.Join(", ", outcome.UnresponsiveEngines.Select(e => e.Name));
+        return $"Search backend engines unavailable: {engines}. Try again later.";
+      }
+
+      var candidates = outcome.Results;
 
       var imageUrls = candidates.Select(c => c.ImageUrl).ToList();
       var validUrls = await _validator.ValidateAsync(imageUrls, ct);

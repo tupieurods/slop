@@ -1,5 +1,13 @@
+# pass_ip allows internal Docker network traffic through without bot-detection throttling.
+# These RFC1918 ranges cover compose bridge networks only — do not expose this instance publicly.
 [botdetection.ip_limit]
 link_token = false
 
 [botdetection.ip_lists]
 pass_searxng_org = false
+pass_ip = [
+  "10.0.0.0/8",
+  "172.16.0.0/12",
+  "192.168.0.0/16",
+]
+
