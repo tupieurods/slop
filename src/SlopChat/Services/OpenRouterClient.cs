@@ -18,6 +18,15 @@ namespace SlopChat.Services
       PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
     };
 
+    private const string FallbackToolIcon = "🔧";
+
+    private static readonly IReadOnlyDictionary<string, string> ToolIcons = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+      ["get_current_date"] = "📅",
+      ["web_search"] = "🌐",
+      ["image_search"] = "🖼️"
+    };
+
     public OpenRouterClient(HttpClient httpClient, string apiKey, ILogger<OpenRouterClient> logger)
     {
       _httpClient = httpClient;
@@ -52,7 +61,7 @@ namespace SlopChat.Services
 
         var workingMessages = new List<ChatMessage>(messages);
         const int maxIterations = 8;
-        int toolCallCount = 0;
+        var executedToolNames = new List<string>();
 
         for(int i = 0; i < maxIterations; i++)
         {
@@ -81,7 +90,7 @@ namespace SlopChat.Services
               _logger.LogInformation("Executing tool {ToolName}", toolCall.Function.Name);
               string result = await toolExecutor.ExecuteAsync(toolCall.Function.Name, toolCall.Function.Arguments, ct);
               workingMessages.Add(ChatMessage.Tool(toolCall.Id, result));
-              toolCallCount++;
+              executedToolNames.Add(toolCall.Function.Name);
             }
             continue;
           }
@@ -96,12 +105,12 @@ namespace SlopChat.Services
 
           if(!string.IsNullOrEmpty(choice.Message?.Content))
           {
-            return ResolveFinalText(choice.Message, toolCallCount);
+            return ResolveFinalText(choice.Message, executedToolNames);
           }
 
           if(!string.IsNullOrEmpty(choice.Message?.Reasoning))
           {
-            string? summarized = await TrySummarizeReasoningAsync(workingMessages, choice.Message!.Reasoning!, model, toolCallCount, ct);
+            string? summarized = await TrySummarizeReasoningAsync(workingMessages, choice.Message!.Reasoning!, model, executedToolNames, ct);
             if(summarized is not null)
             {
               return summarized;
@@ -117,7 +126,7 @@ namespace SlopChat.Services
               model, choice.FinishReason, choice.NativeFinishReason, "5 (placeholder)");
           }
 
-          return ResolveFinalText(choice.Message, toolCallCount);
+          return ResolveFinalText(choice.Message, executedToolNames);
         }
 
         _logger.LogWarning("Reached max tool call iterations ({Max}), forcing final response", maxIterations);
@@ -142,7 +151,7 @@ namespace SlopChat.Services
           _logger.LogWarning(
             "Empty model response recovery: level-2 (force-final, tool_choice=none) produced text, model={Model}, finishReason={FinishReason}, nativeFinishReason={NativeFinishReason}",
             model, level2Choice.FinishReason, level2Choice.NativeFinishReason);
-          return ResolveFinalText(level2Message, toolCallCount);
+          return ResolveFinalText(level2Message, executedToolNames);
         }
 
         string level45 = !string.IsNullOrEmpty(level2Message?.Reasoning) ? "4 (reasoning)" : "5 (placeholder)";
@@ -150,7 +159,7 @@ namespace SlopChat.Services
           "Empty model response recovery: level-2 returned empty content, model={Model}, finishReason={FinishReason}, nativeFinishReason={NativeFinishReason}; using level-{Level}",
           model, level2Choice.FinishReason, level2Choice.NativeFinishReason, level45);
 
-        return ResolveFinalText(level2Message, toolCallCount);
+        return ResolveFinalText(level2Message, executedToolNames);
       }
       catch(Exception ex)
       {
@@ -337,7 +346,7 @@ namespace SlopChat.Services
       List<ChatMessage> history,
       string reasoningText,
       string model,
-      int toolCallCount,
+      IReadOnlyList<string> executedToolNames,
       CancellationToken ct)
     {
       try
@@ -367,9 +376,8 @@ namespace SlopChat.Services
           _logger.LogInformation(
             "Empty model response recovery: summarize-reasoning produced text, model={Model}, finishReason={FinishReason}",
             model, choice!.FinishReason);
-          return toolCallCount > 0
-            ? string.Concat(Enumerable.Repeat("🔧", toolCallCount)) + " " + content
-            : content;
+          string prefix = BuildToolIconPrefix(executedToolNames);
+          return prefix.Length > 0 ? prefix + " " + content : content;
         }
 
         _logger.LogWarning(
@@ -384,7 +392,22 @@ namespace SlopChat.Services
       }
     }
 
-    internal static string ResolveFinalText(ChatChoiceMessage? message, int toolCallCount)
+    internal static string BuildToolIconPrefix(IReadOnlyList<string> executedToolNames)
+    {
+      if(executedToolNames.Count == 0)
+      {
+        return string.Empty;
+      }
+
+      var sb = new StringBuilder(executedToolNames.Count * 2);
+      foreach(string name in executedToolNames)
+      {
+        sb.Append(ToolIcons.TryGetValue(name, out string? icon) ? icon : FallbackToolIcon);
+      }
+      return sb.ToString();
+    }
+
+    internal static string ResolveFinalText(ChatChoiceMessage? message, IReadOnlyList<string> executedToolNames)
     {
       string text;
       if(!string.IsNullOrEmpty(message?.Content))
@@ -400,9 +423,8 @@ namespace SlopChat.Services
         text = "(no response)";
       }
 
-      return toolCallCount > 0
-        ? string.Concat(Enumerable.Repeat("🔧", toolCallCount)) + " " + text
-        : text;
+      string prefix = BuildToolIconPrefix(executedToolNames);
+      return prefix.Length > 0 ? prefix + " " + text : text;
     }
 
     private async Task<ChatCompletionResponse> SendCompletionRequestAsync(ChatCompletionRequest request, CancellationToken ct)
