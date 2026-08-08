@@ -30,6 +30,7 @@ Go to **Settings → Secrets and variables → Actions** and add:
 | `SLOP_OPENROUTER_KEY` | OpenRouter API key *(keep existing)* |
 | `SLOP_ADMIN_ID` | Telegram admin user ID *(keep existing)* |
 | `SLOP_ALLOWED_CHATS` | Comma-separated allowed chat IDs *(keep existing)* |
+| `SLOP_CRAWL4AI_TOKEN` | Random shared secret between SlopMcp and crawl4ai (`openssl rand -hex 32`) |
 
 ---
 
@@ -99,6 +100,9 @@ grep -r "error" /opt/slopchat/logs/
 
 # View Docker stdout/stderr (NLog console output)
 docker logs slopchat --tail 100 -f
+
+# Reading crawl4ai logs
+docker logs crawl4ai --tail 200 -f
 ```
 
 ---

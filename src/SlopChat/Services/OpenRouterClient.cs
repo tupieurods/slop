@@ -24,7 +24,8 @@ namespace SlopChat.Services
     {
       ["get_current_date"] = "📅",
       ["web_search"] = "🌐",
-      ["image_search"] = "🖼️"
+      ["image_search"] = "🖼️",
+      ["fetch_url"] = "🕷"
     };
 
     public OpenRouterClient(HttpClient httpClient, string apiKey, ILogger<OpenRouterClient> logger)

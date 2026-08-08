@@ -1,4 +1,12 @@
 services:
+  crawl4ai:
+    image: unclecode/crawl4ai:latest
+    container_name: crawl4ai
+    restart: unless-stopped
+    shm_size: 1gb
+    environment:
+      - CRAWL4AI_API_TOKEN=${SLOP_CRAWL4AI_TOKEN}
+
   searxng:
     image: searxng/searxng:latest
     container_name: searxng
@@ -15,8 +23,10 @@ services:
     restart: unless-stopped
     depends_on:
       - searxng
+      - crawl4ai
     environment:
       - SLOP_SEARXNG_URL=http://searxng:8080
+      - SLOP_CRAWL4AI_TOKEN=${SLOP_CRAWL4AI_TOKEN}
       - ASPNETCORE_URLS=http://+:8080
 
   slopchat:
