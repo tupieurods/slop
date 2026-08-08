@@ -6,6 +6,12 @@ services:
     shm_size: 1gb
     environment:
       - CRAWL4AI_API_TOKEN=${SLOP_CRAWL4AI_TOKEN}
+      # LOG_LEVEL=DEBUG enables crawl4ai's own module-level debug logging.
+      # GUNICORN_CMD_ARGS appends flags to gunicorn's startup: --access-logfile -
+      # emits an access log line (method / path / status / duration) per request to
+      # stdout, visible in `docker logs crawl4ai`.
+      - LOG_LEVEL=DEBUG
+      - GUNICORN_CMD_ARGS=--access-logfile - --error-logfile - --log-level debug
 
   searxng:
     image: searxng/searxng:latest

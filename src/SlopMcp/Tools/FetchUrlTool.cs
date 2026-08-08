@@ -7,6 +7,7 @@ using SlopMcp.Services;
 
 namespace SlopMcp.Tools {
 
+  [McpServerToolType]
   public class FetchUrlTool
   {
     private static readonly FrozenSet<string> _internalHostNames =
@@ -31,10 +32,7 @@ namespace SlopMcp.Tools {
       _logger = logger;
     }
 
-    [McpServerTool(Name = "fetch_url"), Description(
-      "Fetch the contents of a specific URL as markdown. Use this whenever the user provides a link " +
-      "and wants you to read it, or when a promising URL from web_search needs to be read in full."
-    )]
+    [McpServerTool(Name = "fetch_url"), Description("Fetch the contents of a specific URL as markdown. Use this whenever the user provides a link and wants you to read it, or when a promising URL from web_search needs to be read in full.")]
     public async Task<string> FetchAsync(
       [Description("The URL to fetch")] string url,
       CancellationToken ct = default
@@ -61,7 +59,11 @@ namespace SlopMcp.Tools {
 
       if(outcome.HttpStatus is not null && ((int)outcome.HttpStatus.Value < 200 || (int)outcome.HttpStatus.Value >= 300))
       {
-        return $"Fetch backend error (HTTP {(int)outcome.HttpStatus.Value}). Try again later.";
+        int statusCode = (int)outcome.HttpStatus.Value;
+        string preview = outcome.ResponseBodyPreview ?? string.Empty;
+        return string.IsNullOrWhiteSpace(preview)
+          ? $"Fetch backend error (HTTP {statusCode}). Try again later."
+          : $"Fetch backend error (HTTP {statusCode}): {preview}. Try again later.";
       }
 
       if(string.IsNullOrEmpty(outcome.TaskId))

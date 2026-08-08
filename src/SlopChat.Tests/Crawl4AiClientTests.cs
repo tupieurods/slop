@@ -105,5 +105,64 @@ namespace SlopChat.Tests
 
       Assert.Equal("/crawl/job", requestPath);
     }
+
+    [Fact]
+    public async Task SubmitCrawlJobAsync_Non2xx_PopulatesResponseBodyPreview()
+    {
+      const string body = "{\"detail\":\"Invalid token\"}";
+      var handler = new FuncHttpMessageHandler(_ =>
+        new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = JsonContent(body) }
+      );
+
+      var client = CreateClient(handler);
+      var outcome = await client.SubmitCrawlJobAsync("https://example.com", "http://callback/");
+
+      Assert.Equal(HttpStatusCode.BadRequest, outcome.HttpStatus);
+      Assert.Equal(body, outcome.ResponseBodyPreview);
+    }
+
+    [Theory]
+    [InlineData(
+      "{\"webhook_url\":\"http://cb/?secret=abc123\"}",
+      "{\"webhook_url\":\"http://cb/?secret=REDACTED\"}"
+    )]
+    [InlineData(
+      "{\"webhook_url\":\"http://cb/?foo=bar&secret=tok&other=x\"}",
+      "{\"webhook_url\":\"http://cb/?foo=bar&secret=REDACTED&other=x\"}"
+    )]
+    [InlineData(
+      "no secret here",
+      "no secret here"
+    )]
+    public void RedactSecretFromJson_RedactsSecretParam(string input, string expected)
+    {
+      string result = Crawl4AiClient.RedactSecretFromJson(input);
+      Assert.Equal(expected, result);
+    }
+
+    [Theory]
+    [InlineData("secret=abc123", "secret=REDACTED")]
+    [InlineData("Secret=abc123", "secret=REDACTED")]
+    [InlineData("SECRET=abc123", "secret=REDACTED")]
+    public void SecretRedactor_Redact_IsCaseInsensitive(string input, string expected)
+    {
+      string result = SecretRedactor.Redact(input);
+      Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public async Task SubmitCrawlJobAsync_Non2xx_ResponseBodyPreview_RedactsSecret()
+    {
+      const string body = "{\"webhook_url\":\"http://cb/?secret=supersecret\"}";
+      var handler = new FuncHttpMessageHandler(_ =>
+        new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = JsonContent(body) }
+      );
+
+      var client = CreateClient(handler);
+      var outcome = await client.SubmitCrawlJobAsync("https://example.com", "http://callback/");
+
+      Assert.DoesNotContain("supersecret", outcome.ResponseBodyPreview);
+      Assert.Contains("secret=REDACTED", outcome.ResponseBodyPreview);
+    }
   }
 }

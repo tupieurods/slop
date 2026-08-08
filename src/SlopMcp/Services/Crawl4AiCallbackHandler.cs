@@ -87,7 +87,9 @@ namespace SlopMcp.Services {
           }
           else
           {
-            _registry.Fail(taskId, "crawl4ai returned status=completed but no markdown found in payload");
+            string preview = body.Length > 500 ? body[..500] : body;
+            preview = SecretRedactor.Redact(preview);
+            _registry.Fail(taskId, $"crawl4ai returned status=completed but no markdown found in payload. Preview: {preview}");
           }
         }
         else

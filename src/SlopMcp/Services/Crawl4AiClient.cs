@@ -9,6 +9,7 @@ namespace SlopMcp.Services {
     public string? TaskId { get; init; }
     public System.Net.HttpStatusCode? HttpStatus { get; init; }
     public string? TransportError { get; init; }
+    public string? ResponseBodyPreview { get; init; }
   }
 
   public class Crawl4AiClient
@@ -29,6 +30,9 @@ namespace SlopMcp.Services {
       _logger = logger;
       _timeProvider = timeProvider;
     }
+
+    internal static string RedactSecretFromJson(string json)
+      => SecretRedactor.Redact(json);
 
     public async Task<Crawl4AiJobSubmitOutcome> SubmitCrawlJobAsync(
       string url,
@@ -64,6 +68,11 @@ namespace SlopMcp.Services {
       };
 
       string json = JsonSerializer.Serialize(body, _jsonOptions);
+      _logger.LogDebug(
+        "Crawl4AI submit request [{CorrelationId}]: body={Json}",
+        correlationId, RedactSecretFromJson(json)
+      );
+
       using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
       try
@@ -74,11 +83,16 @@ namespace SlopMcp.Services {
         if(!response.IsSuccessStatusCode)
         {
           string preview = responseBody.Length > 500 ? responseBody[..500] : responseBody;
+          preview = SecretRedactor.Redact(preview);
           _logger.LogError(
             "Crawl4AI job submit returned non-2xx status {Status} [{CorrelationId}]. Body: {Preview}",
             (int)response.StatusCode, correlationId, preview
           );
-          return new Crawl4AiJobSubmitOutcome { HttpStatus = response.StatusCode };
+          return new Crawl4AiJobSubmitOutcome
+          {
+            HttpStatus = response.StatusCode,
+            ResponseBodyPreview = preview
+          };
         }
 
         var parsed = JsonSerializer.Deserialize<SubmitResponse>(responseBody, _jsonOptions);

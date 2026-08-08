@@ -88,6 +88,7 @@ namespace SlopChat.Tests
 
       var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => task);
       Assert.Contains("no markdown found", ex.Message);
+      Assert.Contains("Preview:", ex.Message);
     }
 
     [Fact]
@@ -113,6 +114,21 @@ namespace SlopChat.Tests
 
       var result = await registry.RegisterAndAwaitAsync("unknown-t", TimeSpan.FromSeconds(5), CancellationToken.None);
       Assert.Equal("stashed md", result.Markdown);
+    }
+
+    [Fact]
+    public async Task HandleAsync_CompletedNoMarkdown_FailReasonRedactsSecret()
+    {
+      var registry = CreateRegistry();
+      var handler = CreateHandler(registry);
+      string payload = $"{{\"task_id\":\"t-redact\",\"status\":\"completed\",\"data\":{{}},\"webhook_url\":\"http://cb/?secret=mysecret\"}}";
+      var task = registry.RegisterAndAwaitAsync("t-redact", TimeSpan.FromSeconds(30), CancellationToken.None);
+
+      await handler.HandleAsync(ValidToken, payload, "127.0.0.1");
+
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => task);
+      Assert.DoesNotContain("mysecret", ex.Message);
+      Assert.Contains("secret=REDACTED", ex.Message);
     }
 
     private static int GetStatusCode(IResult result)

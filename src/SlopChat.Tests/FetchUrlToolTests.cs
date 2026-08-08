@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using Microsoft.Extensions.Logging.Abstractions;
+using ModelContextProtocol.Server;
 using SlopMcp.Configuration;
 using SlopMcp.Services;
 using SlopMcp.Tools;
@@ -158,6 +159,44 @@ namespace SlopChat.Tests
       Assert.Contains("crawl4ai returned failure status", result);
     }
 
+    [Fact]
+    public async Task FetchAsync_Non2xxWithBody_ReturnsEnrichedError()
+    {
+      var registry = CreateRegistry();
+      const string responseBody = "{\"detail\":\"Invalid token\"}";
+      var handler = new FuncHttpMessageHandler(_ =>
+        new HttpResponseMessage(HttpStatusCode.BadRequest)
+        {
+          Content = new StringContent(responseBody, Encoding.UTF8, "application/json")
+        }
+      );
+      var client = CreateClient(handler);
+      var tool = new FetchUrlTool(client, registry, DefaultOptions(), NullLogger<FetchUrlTool>.Instance);
+
+      var result = await tool.FetchAsync("https://example.com");
+
+      Assert.Contains("HTTP 400", result);
+      Assert.Contains("Invalid token", result);
+    }
+
+    [Fact]
+    public async Task FetchAsync_Non2xxEmptyBody_ReturnsFallbackError()
+    {
+      var registry = CreateRegistry();
+      var handler = new FuncHttpMessageHandler(_ =>
+        new HttpResponseMessage(HttpStatusCode.BadRequest)
+        {
+          Content = new StringContent(string.Empty, Encoding.UTF8, "application/json")
+        }
+      );
+      var client = CreateClient(handler);
+      var tool = new FetchUrlTool(client, registry, DefaultOptions(), NullLogger<FetchUrlTool>.Instance);
+
+      var result = await tool.FetchAsync("https://example.com");
+
+      Assert.Equal("Fetch backend error (HTTP 400). Try again later.", result);
+    }
+
     [Theory]
     [InlineData("http://localhost/path")]
     [InlineData("http://127.0.0.1/")]
@@ -238,6 +277,24 @@ namespace SlopChat.Tests
     {
       var uri = new Uri(url);
       Assert.True(FetchUrlTool.IsInternalHost(uri, out _));
+    }
+
+    [Fact]
+    public void FetchUrlTool_HasMcpServerToolTypeAttribute()
+    {
+      var attr = typeof(FetchUrlTool).GetCustomAttributes(typeof(McpServerToolTypeAttribute), inherit: false);
+      Assert.NotEmpty(attr);
+    }
+
+    [Fact]
+    public void FetchAsync_HasMcpServerToolAttributeWithCorrectName()
+    {
+      var method = typeof(FetchUrlTool).GetMethod(nameof(FetchUrlTool.FetchAsync));
+      Assert.NotNull(method);
+      var attrs = method!.GetCustomAttributes(typeof(McpServerToolAttribute), inherit: false);
+      Assert.NotEmpty(attrs);
+      var toolAttr = (McpServerToolAttribute)attrs[0];
+      Assert.Equal("fetch_url", toolAttr.Name);
     }
   }
 }

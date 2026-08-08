@@ -105,6 +105,18 @@ docker logs slopchat --tail 100 -f
 docker logs crawl4ai --tail 200 -f
 ```
 
+With `GUNICORN_CMD_ARGS=--access-logfile - ...` set in `docker-compose.yml`, every HTTP
+request to the crawl4ai container produces a gunicorn access log line like:
+
+```
+[2026-08-08 09:57:24 +0000] [25] [INFO] 172.20.0.3:57292 - "POST /crawl/job HTTP/1.1" 400 87 "-" "-"
+```
+
+When a non-2xx is returned, SlopMcp also logs the first 500 characters of the response
+body at ERROR level (including the correlation id), so you can cross-reference
+`docker logs crawl4ai` with SlopMcp's own log file. The same 400 body preview is
+included in the tool result text returned to the LLM / visible in the bot log.
+
 ---
 
 ## Done
