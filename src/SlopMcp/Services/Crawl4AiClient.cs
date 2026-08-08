@@ -51,10 +51,34 @@ namespace SlopMcp.Services {
       var body = new
       {
         urls = new[] { url },
+        // Anti-bot: enable playwright-stealth (removes navigator.webdriver, patches
+        // CDP/plugins fingerprints). This is the "step 1" of crawl4ai's documented
+        // progressive-enhancement anti-detection ladder
+        // (https://docs.crawl4ai.com/advanced/undetected-browser/). We deliberately
+        // keep BrowserConfig otherwise minimal so every request hashes to the same
+        // pool signature and reuses one pooled Chromium — the container is memory-
+        // constrained (see mem=97% in crawl4ai logs). simulate_user is already
+        // enabled server-side via config.yml (crawler.base_config.simulate_user:true),
+        // and magic / override_navigator / UndetectedAdapter are HTTP-forbidden.
+        browser_config = new
+        {
+          type = "BrowserConfig",
+          @params = new { enable_stealth = true }
+        },
         crawler_config = new
         {
           type = "CrawlerRunConfig",
-          @params = new { cache_mode = "bypass" }
+          @params = new
+          {
+            cache_mode = "bypass",
+            // Wait for the DOM to be parsed before extracting. "networkidle" would be
+            // stricter but many pages never reach network-idle (long-poll, analytics).
+            wait_until = "domcontentloaded",
+            // Small post-load pause so playwright-stealth + server-side simulate_user
+            // mouse/scroll events run before we snapshot the page. 1s is a compromise
+            // between anti-bot coverage and per-fetch latency (default is 0.1s).
+            delay_before_return_html = 1.0
+          }
         },
         // Using ?secret=<token> on the callback URL for validation because the
         // crawl4ai webhook_config schema does not guarantee support for arbitrary

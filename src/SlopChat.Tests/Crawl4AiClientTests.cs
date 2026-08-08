@@ -164,5 +164,34 @@ namespace SlopChat.Tests
       Assert.DoesNotContain("supersecret", outcome.ResponseBodyPreview);
       Assert.Contains("secret=REDACTED", outcome.ResponseBodyPreview);
     }
+
+    [Fact]
+    public async Task SubmitCrawlJobAsync_Body_IncludesAntiDetectionConfig()
+    {
+      const string json = """{"task_id":"anti-bot"}""";
+      string? capturedBody = null;
+
+      var handler = new FuncHttpMessageHandler(req =>
+      {
+        capturedBody = req.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+        return new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent(json) };
+      });
+
+      var client = CreateClient(handler);
+      await client.SubmitCrawlJobAsync("https://example.com", "http://callback/");
+
+      Assert.NotNull(capturedBody);
+      using var doc = JsonDocument.Parse(capturedBody!);
+      var root = doc.RootElement;
+
+      var browser = root.GetProperty("browser_config");
+      Assert.Equal("BrowserConfig", browser.GetProperty("type").GetString());
+      Assert.True(browser.GetProperty("params").GetProperty("enable_stealth").GetBoolean());
+
+      var crawler = root.GetProperty("crawler_config").GetProperty("params");
+      Assert.Equal("domcontentloaded", crawler.GetProperty("wait_until").GetString());
+      Assert.Equal(1.0, crawler.GetProperty("delay_before_return_html").GetDouble());
+      Assert.Equal("bypass", crawler.GetProperty("cache_mode").GetString());
+    }
   }
 }

@@ -127,6 +127,24 @@ is not published on any host port, still requires the bearer token, and the
 SlopMcp-side `FetchUrlTool.IsInternalHost` SSRF filter blocks LLM-supplied
 internal targets before they ever reach crawl4ai.
 
+## Anti-bot detection
+
+Some sites detect headless browsers and return CAPTCHAs, blocks, or timeouts
+(especially likely from a datacentre IP such as DigitalOcean). Our `Crawl4AiClient`
+submits every crawl job with `browser_config.params.enable_stealth = true`, which
+enables crawl4ai's playwright-stealth patches (removes `navigator.webdriver`,
+patches plugin/CDP fingerprints, adjusts navigator properties). Combined with the
+server-side `simulate_user: true` default from crawl4ai's `config.yml`, this is
+step 1 of crawl4ai's documented progressive-enhancement anti-detection ladder.
+
+The stronger options — `magic`, `override_navigator`, `simulate_user` (per-request),
+and the `UndetectedAdapter` browser adapter — are **not** exposed via the crawl4ai
+HTTP API (`UNTRUSTED_FORBIDDEN_FIELDS` in `async_configs.py`). Using them would
+require running crawl4ai in-process via the Python SDK. If stealth alone proves
+insufficient for a given site, the practical options are (a) route the crawl4ai
+container's egress through a residential proxy, or (b) accept that the site is
+unreachable from our datacentre IP and pick a different source.
+
 ---
 
 ## Done
