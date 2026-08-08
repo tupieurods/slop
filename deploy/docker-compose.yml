@@ -6,6 +6,15 @@ services:
     shm_size: 1gb
     environment:
       - CRAWL4AI_API_TOKEN=${SLOP_CRAWL4AI_TOKEN}
+      # CRAWL4AI_ALLOW_INTERNAL_URLS=true relaxes crawl4ai's egress SSRF guard so it
+      # can (a) POST job-completion webhooks to http://slopmcp:8080/... (a Docker-
+      # private compose IP, which the guard would otherwise reject with
+      # HTTP 400 {"detail":"URL blocked"}), and (b) accept our forwarded crawl URLs
+      # without a false-positive block. Safe here because: crawl4ai is not
+      # published on any host port (compose-network only), it still requires the
+      # CRAWL4AI_API_TOKEN bearer, and FetchUrlTool.IsInternalHost already blocks
+      # LLM-supplied internal targets before they reach crawl4ai.
+      - CRAWL4AI_ALLOW_INTERNAL_URLS=true
       # LOG_LEVEL=DEBUG enables crawl4ai's own module-level debug logging.
       # GUNICORN_CMD_ARGS appends flags to gunicorn's startup: --access-logfile -
       # emits an access log line (method / path / status / duration) per request to

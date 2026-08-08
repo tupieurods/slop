@@ -117,6 +117,16 @@ body at ERROR level (including the correlation id), so you can cross-reference
 `docker logs crawl4ai` with SlopMcp's own log file. The same 400 body preview is
 included in the tool result text returned to the LLM / visible in the bot log.
 
+**Why `CRAWL4AI_ALLOW_INTERNAL_URLS=true` is set on the crawl4ai service.**
+Crawl4ai 0.9's egress guard rejects any URL whose resolved IP is not globally
+routable — including our webhook callback `http://slopmcp:8080/internal/crawl4ai-callback`,
+which resolves to the private Docker-compose subnet (172.x.x.x). Without this flag,
+every `POST /crawl/job` with a `webhook_config` on the compose network returns
+`HTTP 400 {"detail":"URL blocked"}`. Enabling the flag is safe here: crawl4ai
+is not published on any host port, still requires the bearer token, and the
+SlopMcp-side `FetchUrlTool.IsInternalHost` SSRF filter blocks LLM-supplied
+internal targets before they ever reach crawl4ai.
+
 ---
 
 ## Done
