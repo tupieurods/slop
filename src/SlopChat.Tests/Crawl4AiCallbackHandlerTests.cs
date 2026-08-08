@@ -131,6 +131,82 @@ namespace SlopChat.Tests
       Assert.Contains("secret=REDACTED", ex.Message);
     }
 
+    [Fact]
+    public async Task HandleAsync_MarkdownIsObject_ExtractsRawMarkdown()
+    {
+      var registry = CreateRegistry();
+      var handler = CreateHandler(registry);
+      var task = registry.RegisterAndAwaitAsync("t-obj", TimeSpan.FromSeconds(30), CancellationToken.None);
+
+      string payload =
+        "{\"task_id\":\"t-obj\",\"status\":\"completed\",\"data\":{\"success\":true," +
+        "\"results\":[{\"url\":\"https://example.com\",\"success\":true," +
+        "\"markdown\":{\"raw_markdown\":\"# hello raw\",\"fit_markdown\":\"# hello fit\"," +
+        "\"markdown_with_citations\":\"# hello cited\"}}]}}";
+
+      await handler.HandleAsync(ValidToken, payload, "127.0.0.1");
+
+      var result = await task;
+      // fit_markdown is preferred (typically the cleaner, model-fit form).
+      Assert.Equal("# hello fit", result.Markdown);
+    }
+
+    [Fact]
+    public async Task HandleAsync_MarkdownObjectWithOnlyRaw_ExtractsRaw()
+    {
+      var registry = CreateRegistry();
+      var handler = CreateHandler(registry);
+      var task = registry.RegisterAndAwaitAsync("t-obj2", TimeSpan.FromSeconds(30), CancellationToken.None);
+
+      string payload =
+        "{\"task_id\":\"t-obj2\",\"status\":\"completed\",\"data\":{\"success\":true," +
+        "\"results\":[{\"url\":\"https://example.com\",\"success\":true," +
+        "\"markdown\":{\"raw_markdown\":\"# only raw\",\"fit_markdown\":\"\"}}]}}";
+
+      await handler.HandleAsync(ValidToken, payload, "127.0.0.1");
+
+      var result = await task;
+      Assert.Equal("# only raw", result.Markdown);
+    }
+
+    [Fact]
+    public async Task HandleAsync_CompletedButInnerResultFailed_SurfacesErrorMessage()
+    {
+      var registry = CreateRegistry();
+      var handler = CreateHandler(registry);
+      var task = registry.RegisterAndAwaitAsync("t-fail", TimeSpan.FromSeconds(30), CancellationToken.None);
+
+      // Real crawl4ai 0.9 shape after a Playwright timeout: outer status="completed"
+      // and data.success=true, but results[0].success=false with an error_message.
+      string payload =
+        "{\"task_id\":\"t-fail\",\"status\":\"completed\",\"data\":{\"success\":true," +
+        "\"results\":[{\"url\":\"https://slow.example\",\"success\":false," +
+        "\"error_message\":\"Page.goto: Timeout 60000ms exceeded.\"}]}}";
+
+      await handler.HandleAsync(ValidToken, payload, "127.0.0.1");
+
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => task);
+      Assert.Contains("crawl4ai could not fetch the page", ex.Message);
+      Assert.Contains("Timeout 60000ms exceeded", ex.Message);
+    }
+
+    [Fact]
+    public async Task HandleAsync_CompletedDataSuccessFalse_SurfacesFailure()
+    {
+      var registry = CreateRegistry();
+      var handler = CreateHandler(registry);
+      var task = registry.RegisterAndAwaitAsync("t-fail2", TimeSpan.FromSeconds(30), CancellationToken.None);
+
+      string payload =
+        "{\"task_id\":\"t-fail2\",\"status\":\"completed\",\"data\":{\"success\":false," +
+        "\"results\":[{\"url\":\"https://x\",\"error_message\":\"navigation aborted\"}]}}";
+
+      await handler.HandleAsync(ValidToken, payload, "127.0.0.1");
+
+      var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => task);
+      Assert.Contains("navigation aborted", ex.Message);
+    }
+
     private static int GetStatusCode(IResult result)
     {
       var services = new ServiceCollection()

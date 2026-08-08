@@ -33,6 +33,11 @@ namespace SlopMcp.Services {
       }
 
       _logger.LogInformation("Crawl4AI callback received: payloadSize={Size}", body.Length);
+      if(_logger.IsEnabled(LogLevel.Debug))
+      {
+        string full = body.Length > 4000 ? body[..4000] + "…[truncated]" : body;
+        _logger.LogDebug("Crawl4AI callback raw body (redacted): {Body}", SecretRedactor.Redact(full));
+      }
 
       JsonDocument doc;
       try
@@ -65,25 +70,64 @@ namespace SlopMcp.Services {
         if(status == "completed")
         {
           string? markdown = null;
+          string? innerError = null;
+          bool innerSuccess = true;
 
           if(root.TryGetProperty("data", out var data))
           {
+            if(data.TryGetProperty("success", out var outerSuccess) &&
+               outerSuccess.ValueKind == JsonValueKind.False)
+            {
+              innerSuccess = false;
+            }
+
+            JsonElement? firstResult = null;
             if(data.TryGetProperty("results", out var results) &&
                results.ValueKind == JsonValueKind.Array &&
-               results.GetArrayLength() > 0 &&
-               results[0].TryGetProperty("markdown", out var mdProp))
+               results.GetArrayLength() > 0)
             {
-              markdown = mdProp.GetString();
+              firstResult = results[0];
             }
-            else if(data.TryGetProperty("markdown", out var mdDirect))
+
+            if(firstResult is JsonElement r)
             {
-              markdown = mdDirect.GetString();
+              if(r.TryGetProperty("success", out var rSuccess) &&
+                 rSuccess.ValueKind == JsonValueKind.False)
+              {
+                innerSuccess = false;
+              }
+              if(r.TryGetProperty("error_message", out var rErr) &&
+                 rErr.ValueKind == JsonValueKind.String)
+              {
+                innerError = rErr.GetString();
+              }
+              if(r.TryGetProperty("markdown", out var mdProp))
+              {
+                markdown = ExtractMarkdown(mdProp);
+              }
+            }
+
+            if(string.IsNullOrEmpty(markdown) &&
+               data.TryGetProperty("markdown", out var mdDirect))
+            {
+              markdown = ExtractMarkdown(mdDirect);
             }
           }
 
-          if(!string.IsNullOrEmpty(markdown))
+          if(!string.IsNullOrEmpty(markdown) && innerSuccess)
           {
             _registry.Complete(taskId, markdown);
+          }
+          else if(!innerSuccess || !string.IsNullOrEmpty(innerError))
+          {
+            string reason = string.IsNullOrEmpty(innerError)
+              ? "crawl4ai reported the crawl failed but did not include an error message"
+              : $"crawl4ai could not fetch the page: {innerError}";
+            _logger.LogWarning(
+              "Crawl4AI task {TaskId} failed inside crawler: {Reason}",
+              taskId, reason
+            );
+            _registry.Fail(taskId, reason);
           }
           else
           {
@@ -100,6 +144,30 @@ namespace SlopMcp.Services {
       }
 
       return Results.Ok();
+    }
+
+    private static string? ExtractMarkdown(JsonElement mdProp)
+    {
+      if(mdProp.ValueKind == JsonValueKind.String)
+      {
+        return mdProp.GetString();
+      }
+      if(mdProp.ValueKind == JsonValueKind.Object)
+      {
+        foreach(string key in new[] { "fit_markdown", "raw_markdown", "markdown_with_citations" })
+        {
+          if(mdProp.TryGetProperty(key, out var inner) &&
+             inner.ValueKind == JsonValueKind.String)
+          {
+            string? s = inner.GetString();
+            if(!string.IsNullOrEmpty(s))
+            {
+              return s;
+            }
+          }
+        }
+      }
+      return null;
     }
 
     private bool IsSecretValid(string? secret)
