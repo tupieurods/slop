@@ -207,7 +207,6 @@ namespace SlopChat.Services
           })
           .ToList() ?? [];
 
-        _imageModelCache.Clear();
         foreach(var model in models)
         {
           _imageModelCache[model.Id] = model;
@@ -226,21 +225,23 @@ namespace SlopChat.Services
     {
       try
       {
-        bool canOutputText = !_imageModelCache.TryGetValue(model, out var cached) || cached.CanOutputText;
-
-        var messages = new List<ChatMessage>();
-        if(canOutputText)
+        ImageModelInfo? info = await ResolveImageModelAsync(model, ct);
+        if(info is { CanOutputText: false })
         {
-          messages.Add(ChatMessage.System(
-            "You are an image generation assistant. Generate an image based on the user's prompt. Do not ask clarifying questions — just create the image."));
+          return await GenerateViaImagesApiAsync(prompt, model, null, ct);
         }
-        messages.Add(ChatMessage.User(prompt));
 
         var request = new ChatCompletionRequest
         {
           Model = model,
-          Messages = messages,
-          Modalities = canOutputText ? ["image", "text"] : ["image"],
+          Messages =
+          [
+            ChatMessage.System(
+              "You are an image generation assistant. Generate an image based on the user's prompt. Do not ask clarifying questions — just create the image."
+            ),
+            ChatMessage.User(prompt)
+          ],
+          Modalities = ["image", "text"],
           Usage = new UsageOptions { Include = true }
         };
 
@@ -263,7 +264,11 @@ namespace SlopChat.Services
     {
       try
       {
-        bool canOutputText = !_imageModelCache.TryGetValue(model, out var cached) || cached.CanOutputText;
+        ImageModelInfo? info = await ResolveImageModelAsync(model, ct);
+        if(info is { CanOutputText: false })
+        {
+          return await GenerateViaImagesApiAsync(prompt, model, imageDataUrl, ct);
+        }
 
         var userMessage = ChatMessage.UserMultimodal(
         [
@@ -271,19 +276,17 @@ namespace SlopChat.Services
           ContentPart.Image(imageDataUrl)
         ]);
 
-        var messages = new List<ChatMessage>();
-        if(canOutputText)
-        {
-          messages.Add(ChatMessage.System(
-            "You are an image generation assistant. Generate an image based on the user's prompt and the provided reference image. Do not ask clarifying questions — just create the image."));
-        }
-        messages.Add(userMessage);
-
         var request = new ChatCompletionRequest
         {
           Model = model,
-          Messages = messages,
-          Modalities = canOutputText ? ["image", "text"] : ["image"],
+          Messages =
+          [
+            ChatMessage.System(
+              "You are an image generation assistant. Generate an image based on the user's prompt and the provided reference image. Do not ask clarifying questions — just create the image."
+            ),
+            userMessage
+          ],
+          Modalities = ["image", "text"],
           Usage = new UsageOptions { Include = true }
         };
 
@@ -294,6 +297,80 @@ namespace SlopChat.Services
       {
         _logger.LogError(ex, "Image-to-image generation error");
         return ImageGenerationResult.Failure($"Image-to-image generation error: {ex.Message}");
+      }
+    }
+
+    private async Task<ImageModelInfo?> ResolveImageModelAsync(string model, CancellationToken ct)
+    {
+      if(_imageModelCache.TryGetValue(model, out ImageModelInfo? cached))
+      {
+        return cached;
+      }
+
+      List<ImageModelInfo> models = await GetImageModelsAsync(ct);
+      return models.FirstOrDefault(m => m.Id == model);
+    }
+
+    private async Task<ImageGenerationResult> GenerateViaImagesApiAsync(
+      string prompt,
+      string model,
+      string? imageDataUrl,
+      CancellationToken ct
+    )
+    {
+      var request = new ImagesApiRequest
+      {
+        Model = model,
+        Prompt = prompt,
+        InputReferences = imageDataUrl is null ? null : [ContentPart.Image(imageDataUrl)]
+      };
+
+      string json = JsonSerializer.Serialize(request, JsonOptions);
+      _logger.LogDebug(
+        "OpenRouter images request: model={Model}, references={ReferenceCount}",
+        model,
+        request.InputReferences?.Count ?? 0
+      );
+
+      using var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+      using HttpResponseMessage response = await _httpClient.PostAsync("images", content, ct);
+      string responseJson = await response.Content.ReadAsStringAsync(ct);
+
+      if(!response.IsSuccessStatusCode)
+      {
+        throw new HttpRequestException($"OpenRouter API returned {(int)response.StatusCode}: {responseJson}");
+      }
+
+      ImagesApiResponse imagesResponse = JsonSerializer.Deserialize<ImagesApiResponse>(responseJson, JsonOptions)
+                                         ?? throw new InvalidOperationException("Failed to deserialize OpenRouter images response");
+      _logger.LogDebug(
+        "OpenRouter images response: images={ImageCount}, cost={Cost}",
+        imagesResponse.Data.Count,
+        imagesResponse.Usage?.Cost
+      );
+
+      return ExtractImageFromImagesResponse(imagesResponse);
+    }
+
+    private ImageGenerationResult ExtractImageFromImagesResponse(ImagesApiResponse response)
+    {
+      string? base64 = response.Data.FirstOrDefault()?.B64Json;
+      if(string.IsNullOrEmpty(base64))
+      {
+        _logger.LogWarning("Images API response contained no image data");
+        return ImageGenerationResult.Failure("Model returned empty response.");
+      }
+
+      try
+      {
+        byte[] bytes = Convert.FromBase64String(base64);
+        return ImageGenerationResult.Success(bytes, null, response.Usage?.Cost);
+      }
+      catch(FormatException ex)
+      {
+        _logger.LogWarning(ex, "Failed to decode base64 image data from Images API");
+        return ImageGenerationResult.Failure("Failed to decode image data.");
       }
     }
 

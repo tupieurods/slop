@@ -30,7 +30,7 @@
 |---|---|---|
 | `MessageRouter` | `Services/MessageRouter.cs` | Routes incoming Telegram messages to commands or Slop handler; dictionary-based command dispatch |
 | `ConversationManager` | `Services/ConversationManager.cs` | Per-chat message history, per-chat model selection (LLM + draw), date injection, compaction/summarization |
-| `OpenRouterClient` | `Services/OpenRouterClient.cs` | HTTP client for OpenRouter API (chat completions, models, image generation), tool call loop, wrench emoji prefix |
+| `OpenRouterClient` | `Services/OpenRouterClient.cs` | HTTP client for OpenRouter API (chat completions, models, image generation — chat/completions for image+text models, `/images` endpoint for image-only models), tool call loop, wrench emoji prefix |
 | `OpenRouterVideoClient` | `Services/OpenRouterVideoClient.cs` | HTTP client for OpenRouter video generation API (submit job, poll until completed, download bytes) |
 | `McpToolService` | `Services/McpToolService.cs` | MCP tool provider (implements `IToolExecutor`) |
 | `MarkdownConverter` | `Services/MarkdownConverter.cs` | Converts LLM markdown → plain text + Telegram `MessageEntity` list |

@@ -1,7 +1,7 @@
 ---
 name: code-developer
 description: Implements features, fixes, and refactors for the SlopChat project (C# / .NET 10). Spawn this agent when executing an approved plan or any concrete code-change task. Not for planning, design discussion, or pure review.
-model: claude-sonnet-4.6
+model: claude-opus-5-5
 reasoning_effort: medium
 ---
 
