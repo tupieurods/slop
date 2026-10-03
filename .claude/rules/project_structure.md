@@ -30,7 +30,8 @@
 |---|---|---|
 | `MessageRouter` | `Services/MessageRouter.cs` | Routes incoming Telegram messages to commands or Slop handler; dictionary-based command dispatch |
 | `ConversationManager` | `Services/ConversationManager.cs` | Per-chat message history, per-chat model selection (LLM + draw), date injection, compaction/summarization |
-| `OpenRouterClient` | `Services/OpenRouterClient.cs` | HTTP client for OpenRouter API (chat completions, models, image generation — chat/completions for image+text models, `/images` endpoint for image-only models), tool call loop, wrench emoji prefix |
+| `OpenRouterClient` | `Services/OpenRouterClient.cs` | HTTP client for OpenRouter API (chat completions streamed over SSE, models, image generation — non-streaming chat/completions for image+text models, `/images` endpoint for image-only models), tool call loop, wrench emoji prefix |
+| `OpenRouterStreamReader` | `Services/OpenRouterStreamReader.cs` | Parses OpenRouter SSE chat-completion streams (skips keep-alive comments, merges content/reasoning/tool-call deltas, 90 s idle timeout + 10 min total cap, mid-stream errors) into a single `ChatCompletionResponse` |
 | `OpenRouterVideoClient` | `Services/OpenRouterVideoClient.cs` | HTTP client for OpenRouter video generation API (submit job, poll until completed, download bytes) |
 | `McpToolService` | `Services/McpToolService.cs` | MCP tool provider (implements `IToolExecutor`); returns tool text plus decoded image blocks (`ToolExecutionResult`). Images collected during the tool loop (`OpenRouterClient.GetCompletionWithMediaAsync`) are sent as photos by `SlopMessageHandler` |
 | `MarkdownConverter` | `Services/MarkdownConverter.cs` | Converts LLM markdown → plain text + Telegram `MessageEntity` list (fallback path when a rich message is rejected) |

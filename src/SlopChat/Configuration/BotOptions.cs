@@ -36,9 +36,9 @@ public class BotOptions
         13. Ссылки и содержимое страниц: если пользователь дал тебе ссылку или просит прочитать конкретную страницу, обязательно вызови tool fetch_url. Не используй web_search для этого — web_search нужен только для общего поиска.
         """;
 
-    public const string DefaultModel = "google/gemini-3-flash-preview";
+    public const string DefaultModel = "google/gemini-3.1-pro-preview";
 
-    public const string DefaultDrawModel = "openai/gpt-5-image-mini";
+    public const string DefaultDrawModel = "bytedance-seed/seedream-5-0-pro";
 
     public const string DefaultVideoModel = "bytedance/seedance-2.0-fast";
 

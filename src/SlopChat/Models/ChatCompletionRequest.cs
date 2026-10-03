@@ -25,6 +25,10 @@ namespace SlopChat.Models
     [JsonPropertyName("usage")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public UsageOptions? Usage { get; set; }
+
+    [JsonPropertyName("stream")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? Stream { get; set; }
   }
 
   public class UsageOptions

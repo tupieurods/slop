@@ -13,10 +13,13 @@ namespace SlopChat.Services
     private readonly ILogger<OpenRouterClient> _logger;
     private readonly ConcurrentDictionary<string, ImageModelInfo> _imageModelCache = new();
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    internal static readonly JsonSerializerOptions JsonOptions = new()
     {
       PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
     };
+
+    private static readonly TimeSpan StreamIdleTimeout = TimeSpan.FromSeconds(90);
+    private static readonly TimeSpan StreamTotalTimeout = TimeSpan.FromMinutes(10);
 
     private const string FallbackToolIcon = "🔧";
 
@@ -84,7 +87,7 @@ namespace SlopChat.Services
             Tools = tools
           };
 
-          ChatCompletionResponse response = await SendCompletionRequestAsync(request, ct);
+          ChatCompletionResponse response = await SendStreamingCompletionRequestAsync(request, ct);
           ChatChoice choice = response.Choices.FirstOrDefault()
                               ?? throw new InvalidOperationException("OpenRouter returned no choices");
 
@@ -154,7 +157,7 @@ namespace SlopChat.Services
           Tools = tools,
           ToolChoice = "none"
         };
-        ChatCompletionResponse level2Response = await SendCompletionRequestAsync(level2Request, ct);
+        ChatCompletionResponse level2Response = await SendStreamingCompletionRequestAsync(level2Request, ct);
         ChatChoice level2Choice = level2Response.Choices.FirstOrDefault()
                                   ?? throw new InvalidOperationException("OpenRouter returned no choices in level-2 retry");
         ChatChoiceMessage? level2Message = level2Choice.Message;
@@ -457,7 +460,7 @@ namespace SlopChat.Services
           ToolChoice = "none"
         };
 
-        ChatCompletionResponse response = await SendCompletionRequestAsync(request, ct);
+        ChatCompletionResponse response = await SendStreamingCompletionRequestAsync(request, ct);
         ChatChoice? choice = response.Choices.FirstOrDefault();
         string? content = choice?.Message?.Content;
 
@@ -535,6 +538,34 @@ namespace SlopChat.Services
 
       return JsonSerializer.Deserialize<ChatCompletionResponse>(responseJson, JsonOptions)
              ?? throw new InvalidOperationException("Failed to deserialize OpenRouter response");
+    }
+
+    private async Task<ChatCompletionResponse> SendStreamingCompletionRequestAsync(ChatCompletionRequest request, CancellationToken ct)
+    {
+      request.Stream = true;
+      string json = JsonSerializer.Serialize(request, JsonOptions);
+      _logger.LogDebug("OpenRouter streaming request: {Json}", json);
+
+      using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
+      {
+        Content = new StringContent(json, Encoding.UTF8, "application/json")
+      };
+
+      using HttpResponseMessage response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, ct);
+      if(!response.IsSuccessStatusCode)
+      {
+        string errorJson = await response.Content.ReadAsStringAsync(ct);
+        throw new HttpRequestException($"OpenRouter API returned {(int)response.StatusCode}: {errorJson}");
+      }
+
+      await using Stream body = await response.Content.ReadAsStreamAsync(ct);
+      ChatCompletionResponse result = await OpenRouterStreamReader.ReadAsync(body, StreamIdleTimeout, StreamTotalTimeout, ct);
+      if(_logger.IsEnabled(LogLevel.Debug))
+      {
+        _logger.LogDebug("OpenRouter streamed response: {Json}", JsonSerializer.Serialize(result, JsonOptions));
+      }
+
+      return result;
     }
   }
 }

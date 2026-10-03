@@ -42,7 +42,7 @@ internal class Program
           services.AddSingleton<SlopMessageHandler>();
           services.AddSingleton<CommandHandler>();
           services.AddSingleton(sp => new OpenRouterClient(
-            new HttpClient(),
+            new HttpClient { Timeout = TimeSpan.FromSeconds(200) },
             options.OpenRouterKey,
             sp.GetRequiredService<ILogger<OpenRouterClient>>()
           ));
