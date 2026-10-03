@@ -1,4 +1,6 @@
+using Microsoft.Extensions.Logging;
 using Telegram.Bot;
+using Telegram.Bot.Exceptions;
 using Telegram.Bot.Types;
 
 namespace SlopChat.Services
@@ -6,8 +8,66 @@ namespace SlopChat.Services
   public static class TelegramMessageHelper
   {
     private const int MaxMessageLength = 4096;
+    private const int MaxRichMessageLength = 30_000;
 
-    public static async Task SendChunkedAsync(ITelegramBotClient bot, long chatId, string text, int replyToMessageId, CancellationToken ct)
+    public static async Task SendRichAsync(
+      ITelegramBotClient bot,
+      long chatId,
+      string markdown,
+      int replyToMessageId,
+      ILogger logger,
+      CancellationToken ct
+    )
+    {
+      if(string.IsNullOrWhiteSpace(markdown))
+      {
+        return;
+      }
+
+      var chunks = RichMarkdownSplitter.Split(markdown, MaxRichMessageLength);
+      bool isFirst = true;
+
+      for(int i = 0; i < chunks.Count; i++)
+      {
+        if(string.IsNullOrWhiteSpace(chunks[i]))
+        {
+          continue;
+        }
+
+        ReplyParameters? replyParams = isFirst ? new ReplyParameters { MessageId = replyToMessageId } : null;
+        try
+        {
+          await bot.SendRichMessage(
+            chatId,
+            new InputRichMessage { Markdown = chunks[i] },
+            replyParams,
+            cancellationToken: ct
+          );
+        }
+        catch(ApiRequestException ex) when(IsRichMarkdownRejection(ex))
+        {
+          logger.LogWarning(
+            ex,
+            "Rich message chunk {ChunkIndex}/{ChunkCount} rejected in chat {ChatId}, falling back to entity formatting",
+            i + 1,
+            chunks.Count,
+            chatId
+          );
+          await SendChunkedCoreAsync(bot, chatId, string.Concat(chunks.Skip(i)), isFirst ? replyToMessageId : null, ct);
+          return;
+        }
+
+        isFirst = false;
+      }
+    }
+
+    public static Task SendChunkedAsync(ITelegramBotClient bot, long chatId, string text, int replyToMessageId, CancellationToken ct)
+      => SendChunkedCoreAsync(bot, chatId, text, replyToMessageId, ct);
+
+    private static bool IsRichMarkdownRejection(ApiRequestException ex)
+      => ex.ErrorCode == 400 && !ex.Message.Contains("message to be replied not found", StringComparison.OrdinalIgnoreCase);
+
+    private static async Task SendChunkedCoreAsync(ITelegramBotClient bot, long chatId, string text, int? replyToMessageId, CancellationToken ct)
     {
       var (plainText, entities) = MarkdownConverter.ToTelegramEntities(text);
 
@@ -15,7 +75,7 @@ namespace SlopChat.Services
       {
         await bot.SendMessage(chatId, plainText,
           entities: entities,
-          replyParameters: new ReplyParameters { MessageId = replyToMessageId },
+          replyParameters: BuildReplyParameters(replyToMessageId),
           cancellationToken: ct);
         return;
       }
@@ -37,7 +97,7 @@ namespace SlopChat.Services
 
         string chunk = plainText.Substring(offset, length);
         var chunkEntities = SliceEntities(entities, offset, length);
-        ReplyParameters? replyParams = isFirst ? new ReplyParameters { MessageId = replyToMessageId } : null;
+        ReplyParameters? replyParams = isFirst ? BuildReplyParameters(replyToMessageId) : null;
         await bot.SendMessage(chatId, chunk,
           entities: chunkEntities.Count > 0 ? chunkEntities : null,
           replyParameters: replyParams,
@@ -47,6 +107,9 @@ namespace SlopChat.Services
         isFirst = false;
       }
     }
+
+    private static ReplyParameters? BuildReplyParameters(int? replyToMessageId)
+      => replyToMessageId is { } messageId ? new ReplyParameters { MessageId = messageId } : null;
 
     private static List<MessageEntity> SliceEntities(List<MessageEntity> entities, int offset, int length)
     {

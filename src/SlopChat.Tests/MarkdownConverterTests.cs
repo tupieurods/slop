@@ -540,4 +540,48 @@ public class MarkdownConverterTests
     Assert.Equal("Two", text.Substring(entities[1].Offset, entities[1].Length));
     Assert.Equal("Three", text.Substring(entities[2].Offset, entities[2].Length));
   }
+
+  [Fact]
+  public void EscapedDollar_IsUnescaped()
+  {
+    var (text, entities) = MarkdownConverter.ToTelegramEntities(@"Costs \$5 or \$10, path C:\dir");
+
+    Assert.Equal(@"Costs $5 or $10, path C:\dir", text);
+    Assert.Empty(entities);
+  }
+
+  [Fact]
+  public void EscapedDollar_InsideBold_IsUnescapedWithCorrectEntity()
+  {
+    var (text, entities) = MarkdownConverter.ToTelegramEntities(@"Итого **Цена: \$5** сейчас");
+
+    Assert.Equal("Итого Цена: $5 сейчас", text);
+    var entity = Assert.Single(entities);
+    Assert.Equal(MessageEntityType.Bold, entity.Type);
+    Assert.Equal("Цена: $5", text.Substring(entity.Offset, entity.Length));
+  }
+
+  [Theory]
+  [InlineData(@"# Цена \$5", "Цена $5")]
+  [InlineData(@"[Купить за \$5](https://example.com)", "Купить за $5")]
+  [InlineData(@"~~\$10~~", "$10")]
+  [InlineData(@"*\$5*", "$5")]
+  [InlineData(@"_\$5_", "$5")]
+  public void EscapedDollar_InsideFormattedText_IsUnescaped(string markdown, string expected)
+  {
+    var (text, entities) = MarkdownConverter.ToTelegramEntities(markdown);
+
+    Assert.Equal(expected, text);
+    var entity = Assert.Single(entities);
+    Assert.Equal(expected, text.Substring(entity.Offset, entity.Length));
+  }
+
+  [Fact]
+  public void EscapedDollar_InsideInlineCode_IsKept()
+  {
+    var (text, entities) = MarkdownConverter.ToTelegramEntities(@"Run `echo \$HOME`");
+
+    Assert.Equal(@"Run echo \$HOME", text);
+    Assert.Single(entities);
+  }
 }

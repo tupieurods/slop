@@ -192,8 +192,8 @@ namespace SlopChat.Handlers
       if(result.HasText)
       {
         string costStr = result.Cost.HasValue ? $"${result.Cost.Value:F4}" : "unknown";
-        string textWithCost = $"{drawModel}: {costStr}\n\n{result.TextResponse!}";
-        await TelegramMessageHelper.SendChunkedAsync(bot, chatId, textWithCost, message.MessageId, ct);
+        string textWithCost = $"{drawModel}: `{costStr}`\n\n{result.TextResponse!}";
+        await TelegramMessageHelper.SendRichAsync(bot, chatId, textWithCost, message.MessageId, _logger, ct);
         return;
       }
 

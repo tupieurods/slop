@@ -33,8 +33,9 @@
 | `OpenRouterClient` | `Services/OpenRouterClient.cs` | HTTP client for OpenRouter API (chat completions, models, image generation — chat/completions for image+text models, `/images` endpoint for image-only models), tool call loop, wrench emoji prefix |
 | `OpenRouterVideoClient` | `Services/OpenRouterVideoClient.cs` | HTTP client for OpenRouter video generation API (submit job, poll until completed, download bytes) |
 | `McpToolService` | `Services/McpToolService.cs` | MCP tool provider (implements `IToolExecutor`) |
-| `MarkdownConverter` | `Services/MarkdownConverter.cs` | Converts LLM markdown → plain text + Telegram `MessageEntity` list |
-| `TelegramMessageHelper` | `Services/TelegramMessageHelper.cs` | Chunked message sending with entity-aware splitting |
+| `MarkdownConverter` | `Services/MarkdownConverter.cs` | Converts LLM markdown → plain text + Telegram `MessageEntity` list (fallback path when a rich message is rejected) |
+| `TelegramMessageHelper` | `Services/TelegramMessageHelper.cs` | Rich message sending (`SendRichAsync`, falls back to the legacy path on API errors) and legacy chunked sending with entity-aware splitting (`SendChunkedAsync`) |
+| `RichMarkdownSplitter` | `Services/RichMarkdownSplitter.cs` | Splits markdown into rich-message-sized chunks at blank-line boundaries outside code fences |
 | `TelegramMediaDownloader` | `Services/TelegramMediaDownloader.cs` | Downloads Telegram photos as base64 data URLs for multimodal API requests |
 
 ## Deployment

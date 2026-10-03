@@ -28,7 +28,8 @@ public static class MarkdownConverter
         ?? TryStrikethrough(markdown, pos, sb, entities)
         ?? TryItalicAsterisk(markdown, pos, sb, entities)
         ?? TryItalicUnderscore(markdown, pos, sb, entities)
-        ?? TryBulletList(markdown, pos, sb);
+        ?? TryBulletList(markdown, pos, sb)
+        ?? TryEscapedDollar(markdown, pos, sb);
 
       if(next.HasValue)
       {
@@ -153,7 +154,7 @@ public static class MarkdownConverter
       return null;
     }
 
-    string linkText = text[(pos + 1)..closeBracket];
+    string linkText = UnescapeDollars(text[(pos + 1)..closeBracket]);
     string url = text[(closeBracket + 2)..closeParen];
     int entityOffset = sb.Length;
     sb.Append(linkText);
@@ -276,7 +277,7 @@ public static class MarkdownConverter
       lineEnd = text.Length;
     }
 
-    string headingText = text[(hashEnd + 1)..lineEnd];
+    string headingText = UnescapeDollars(text[(hashEnd + 1)..lineEnd]);
     int entityOffset = sb.Length;
     sb.Append(headingText);
     entities.Add(new MessageEntity
@@ -302,7 +303,7 @@ public static class MarkdownConverter
       return null;
     }
 
-    string inner = text[(pos + 2)..closeIndex];
+    string inner = UnescapeDollars(text[(pos + 2)..closeIndex]);
     int entityOffset = sb.Length;
     sb.Append(inner);
     entities.Add(new MessageEntity
@@ -328,7 +329,7 @@ public static class MarkdownConverter
       return null;
     }
 
-    string inner = text[(pos + 2)..closeIndex];
+    string inner = UnescapeDollars(text[(pos + 2)..closeIndex]);
     int entityOffset = sb.Length;
     sb.Append(inner);
     entities.Add(new MessageEntity
@@ -365,7 +366,7 @@ public static class MarkdownConverter
       return null;
     }
 
-    string inner = text[(pos + 1)..closeIndex];
+    string inner = UnescapeDollars(text[(pos + 1)..closeIndex]);
     int entityOffset = sb.Length;
     sb.Append(inner);
     entities.Add(new MessageEntity
@@ -416,7 +417,7 @@ public static class MarkdownConverter
       return null;
     }
 
-    string inner = text[(pos + 1)..closeIndex];
+    string inner = UnescapeDollars(text[(pos + 1)..closeIndex]);
     int entityOffset = sb.Length;
     sb.Append(inner);
     entities.Add(new MessageEntity
@@ -449,6 +450,19 @@ public static class MarkdownConverter
     sb.Append('•');
     return pos + 1;
   }
+
+  private static int? TryEscapedDollar(string text, int pos, StringBuilder sb)
+  {
+    if(text[pos] != '\\' || pos + 1 >= text.Length || text[pos + 1] != '$')
+    {
+      return null;
+    }
+
+    sb.Append('$');
+    return pos + 2;
+  }
+
+  private static string UnescapeDollars(string text) => text.Replace(@"\$", "$", StringComparison.Ordinal);
 
   private static int FindClosingMarker(string text, int start, char marker)
   {

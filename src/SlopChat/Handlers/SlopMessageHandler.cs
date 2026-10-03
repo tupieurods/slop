@@ -39,7 +39,7 @@ public class SlopMessageHandler
       {
         string response = await _openRouter.GetCompletionAsync(history, _conversationManager.GetModel(chatId), ct, _toolExecutor);
         _conversationManager.AddAssistantMessage(chatId, response);
-        await TelegramMessageHelper.SendChunkedAsync(bot, chatId, response, message.MessageId, ct);
+        await TelegramMessageHelper.SendRichAsync(bot, chatId, response, message.MessageId, _logger, ct);
       }
       catch(Exception ex)
       {
