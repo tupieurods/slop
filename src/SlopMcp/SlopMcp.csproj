@@ -7,7 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="AutomaticGraphLayout" Version="1.1.12" />
+    <PackageReference Include="AutomaticGraphLayout.Drawing" Version="1.1.12" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
+    <PackageReference Include="ScottPlot" Version="5.1.59" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\ne_110m_admin_0_countries.geojson" LogicalName="SlopMcp.Resources.ne_110m_admin_0_countries.geojson" />
   </ItemGroup>
 
   <ItemGroup>

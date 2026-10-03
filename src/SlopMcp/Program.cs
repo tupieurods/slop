@@ -1,5 +1,6 @@
 using SlopMcp.Configuration;
 using SlopMcp.Services;
+using SlopMcp.Services.Visualization;
 using SlopMcp.Tools;
 
 namespace SlopMcp;
@@ -32,6 +33,10 @@ internal class Program
       crawl4aiToken
     ));
 
+    builder.Services.AddSingleton<ChartRenderer>();
+    builder.Services.AddSingleton<DiagramRenderer>();
+    builder.Services.AddSingleton<WorldMapRenderer>();
+
     builder.Services.AddHttpClient<SearXngClient>(client =>
     {
       client.BaseAddress = new Uri(searXngUrl);
@@ -58,7 +63,10 @@ internal class Program
       .WithTools<WebSearchTool>()
       .WithTools<ImageSearchTool>()
       .WithTools<GetCurrentDateTool>()
-      .WithTools<FetchUrlTool>();
+      .WithTools<FetchUrlTool>()
+      .WithTools<RenderChartTool>()
+      .WithTools<RenderDiagramTool>()
+      .WithTools<RenderWorldMapTool>();
 
     var app = builder.Build();
 

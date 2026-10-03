@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using SlopChat.Models;
 using SlopChat.Services;
 using Telegram.Bot;
+using Telegram.Bot.Exceptions;
 using Telegram.Bot.Types;
 
 namespace SlopChat.Handlers;
@@ -37,8 +38,10 @@ public class SlopMessageHandler
 
       try
       {
-        string response = await _openRouter.GetCompletionAsync(history, _conversationManager.GetModel(chatId), ct, _toolExecutor);
+        CompletionResult completion = await _openRouter.GetCompletionWithMediaAsync(history, _conversationManager.GetModel(chatId), ct, _toolExecutor);
+        string response = completion.Text;
         _conversationManager.AddAssistantMessage(chatId, response);
+        await SendImagesAsync(bot, chatId, message.MessageId, completion.Images, ct);
         await TelegramMessageHelper.SendRichAsync(bot, chatId, response, message.MessageId, _logger, ct);
       }
       catch(Exception ex)
@@ -50,6 +53,58 @@ public class SlopMessageHandler
           replyParameters: new ReplyParameters { MessageId = message.MessageId },
           cancellationToken: ct
         );
+      }
+    }
+
+    private async Task SendImagesAsync(ITelegramBotClient bot, long chatId, int replyToMessageId, IReadOnlyList<byte[]> images, CancellationToken ct)
+    {
+      for(int i = 0; i < images.Count; i++)
+      {
+        string fileName = $"image_{i + 1}.png";
+        try
+        {
+          using var stream = new MemoryStream(images[i]);
+          await bot.SendPhoto(
+            chatId,
+            InputFile.FromStream(stream, fileName),
+            replyParameters: new ReplyParameters { MessageId = replyToMessageId },
+            cancellationToken: ct
+          );
+        }
+        catch(ApiRequestException ex)
+        {
+          _logger.LogWarning(ex, "Failed to send tool image as photo to chat {ChatId}; retrying as document", chatId);
+          await TrySendImageAsDocumentAsync(bot, chatId, replyToMessageId, images[i], fileName, ct);
+        }
+        catch(RequestException ex)
+        {
+          _logger.LogError(ex, "Failed to send tool image to chat {ChatId}", chatId);
+        }
+      }
+    }
+
+    private async Task TrySendImageAsDocumentAsync(
+      ITelegramBotClient bot,
+      long chatId,
+      int replyToMessageId,
+      byte[] image,
+      string fileName,
+      CancellationToken ct
+    )
+    {
+      try
+      {
+        using var stream = new MemoryStream(image);
+        await bot.SendDocument(
+          chatId,
+          InputFile.FromStream(stream, fileName),
+          replyParameters: new ReplyParameters { MessageId = replyToMessageId },
+          cancellationToken: ct
+        );
+      }
+      catch(RequestException ex)
+      {
+        _logger.LogError(ex, "Failed to send tool image as document to chat {ChatId}", chatId);
       }
     }
 

@@ -14,6 +14,8 @@ namespace SlopChat.Services
     private readonly ILogger<McpToolService> _logger;
     private readonly SemaphoreSlim _initLock = new(1, 1);
 
+    private static readonly HashSet<string> SupportedImageMimeTypes = new(StringComparer.OrdinalIgnoreCase) { "image/png", "image/jpeg" };
+
     private McpClient? _client;
     private IList<McpClientTool>? _mcpTools;
     private IReadOnlyList<ToolDefinition>? _toolDefinitions;
@@ -33,14 +35,14 @@ namespace SlopChat.Services
       return _toolDefinitions ?? [];
     }
 
-    public async Task<string> ExecuteAsync(string toolName, string arguments, CancellationToken ct)
+    public async Task<ToolExecutionResult> ExecuteAsync(string toolName, string arguments, CancellationToken ct)
     {
       await EnsureInitializedAsync(ct);
 
       McpClientTool? mcpTool = _mcpTools?.FirstOrDefault(t => t.Name == toolName);
       if(mcpTool is null)
       {
-        return $"Tool '{toolName}' not found.";
+        return ToolExecutionResult.TextOnly($"Tool '{toolName}' not found.");
       }
 
       try
@@ -51,21 +53,27 @@ namespace SlopChat.Services
         CallToolResult result = await mcpTool.CallAsync(args, cancellationToken: ct);
 
         var sb = new StringBuilder();
+        List<byte[]> images = [];
         foreach(ContentBlock block in result.Content)
         {
-          if(block is TextContentBlock textBlock)
+          switch(block)
           {
-            sb.AppendLine(textBlock.Text);
+            case TextContentBlock textBlock:
+              sb.AppendLine(textBlock.Text);
+              break;
+            case ImageContentBlock imageBlock when SupportedImageMimeTypes.Contains(imageBlock.MimeType) && !imageBlock.DecodedData.IsEmpty:
+              images.Add(imageBlock.DecodedData.ToArray());
+              break;
           }
         }
 
         string text = sb.ToString().TrimEnd();
-        return string.IsNullOrEmpty(text) ? "Tool returned no text content." : text;
+        return new ToolExecutionResult(string.IsNullOrEmpty(text) ? "Tool returned no text content." : text, images);
       }
       catch(Exception ex)
       {
         _logger.LogError(ex, "Failed to execute MCP tool {ToolName}", toolName);
-        return $"Tool execution error: {ex.Message}";
+        return ToolExecutionResult.TextOnly($"Tool execution error: {ex.Message}");
       }
     }
 

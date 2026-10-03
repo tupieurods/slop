@@ -11,7 +11,8 @@ A Telegram group chat bot powered by [OpenRouter](https://openrouter.ai/) — ac
 - **Image Generation** — generate images with `!draw`, supports text-to-image and image-to-image (reply to a photo with a prompt)
 - **Conversation Memory** — per-chat history with automatic summarization to keep token costs down
 - **Multimodal** — understands images: reply to a photo or send one with a caption to ask about it
-- **MCP Tools** — extensible tool calling via Model Context Protocol (web search, image search, exchange rates, etc.)
+- **MCP Tools** — extensible tool calling via Model Context Protocol (web search, image search, URL fetching, etc.)
+- **Charts, Diagrams & Maps** — the LLM can render line/bar/scatter/pie charts, flowchart-style diagrams and world maps colored by per-country statistics; the images are sent to the chat
 - **Rich Formatting** — LLM markdown responses are sent as Telegram rich messages (tables, headings, lists, quotes, code blocks, formulas), with a fallback to entity-based formatting if Telegram rejects the markdown
 - **Access Control** — admin-only commands, allowlisted chats, private-chat restriction
 - **Docker Deployment** — one-push CI/CD via GitHub Actions → Docker Hub → VPS
@@ -72,13 +73,13 @@ Reply to any message with a `slop` prefix to include it as context:
 | Command | Who | Description |
 |---|---|---|
 | `!reset` | Everyone | Clear conversation history for this chat |
-| `!model` | Everyone | Show the currently active LLM model |
+| `!model` | Everyone | Show the currently active LLM model (default: `google/gemini-3.1-pro-preview`) |
 | `!draw <prompt>` | Everyone | Generate an image from a text prompt (reply to a message to use its text/image as context). Caption shows `model: $cost`. |
 | `!video <prompt>` | Everyone | Generate a video from a text prompt (reply to a photo to use it as the first frame). Responds immediately and sends the video when ready. |
 | `!models [filter]` | Admin | List all available models from OpenRouter. Optional `filter` does a case-insensitive substring match on the model id. |
 | `!set_model <name>` | Admin | Switch to a different model (resets history) |
 | `!draw_models [filter]` | Admin | List available image generation models. Optional `filter` does a case-insensitive substring match on the model id. |
-| `!set_draw_model <name>` | Admin | Switch the image generation model (default: `openai/gpt-image-1`) |
+| `!set_draw_model <name>` | Admin | Switch the image generation model (default: `bytedance-seed/seedream-5-0-pro`) |
 | `!video_models [filter]` | Admin | List available video generation models. Optional `filter` does a case-insensitive substring match on the model id or name. |
 | `!set_video_model <name>` | Admin | Switch the video generation model (default: `bytedance/seedance-2.0-fast`) |
 | `!version` | Admin | Show the build timestamp |
@@ -89,6 +90,9 @@ Reply to any message with a `slop` prefix to include it as context:
 - **[Telegram.Bot](https://github.com/TelegramBots/Telegram.Bot)** — Telegram API client
 - **[OpenRouter API](https://openrouter.ai/docs/api-reference/overview)** — direct HTTP integration (HttpClient + System.Text.Json)
 - **[Model Context Protocol](https://modelcontextprotocol.io/)** — tool calling via MCP server
+- **[ScottPlot](https://scottplot.net/)** — chart and world map rendering
+- **[MSAGL](https://github.com/microsoft/automatic-graph-layout)** — diagram layout
+- **[Natural Earth](https://www.naturalearthdata.com/)** — public-domain country shapes for world maps
 - **NLog** — file-based logging with daily rotation
 - **xUnit** — unit tests
 - **Docker** + **GitHub Actions** — CI/CD pipeline

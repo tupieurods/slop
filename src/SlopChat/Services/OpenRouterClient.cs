@@ -25,7 +25,10 @@ namespace SlopChat.Services
       ["get_current_date"] = "📅",
       ["web_search"] = "🌐",
       ["image_search"] = "🖼️",
-      ["fetch_url"] = "🕷"
+      ["fetch_url"] = "🕷",
+      ["render_chart"] = "📊",
+      ["render_diagram"] = "🔀",
+      ["render_world_map"] = "🗺️"
     };
 
     public OpenRouterClient(HttpClient httpClient, string apiKey, ILogger<OpenRouterClient> logger)
@@ -41,8 +44,16 @@ namespace SlopChat.Services
       string model,
       CancellationToken ct,
       IToolExecutor? toolExecutor = null
+    ) => (await GetCompletionWithMediaAsync(messages, model, ct, toolExecutor)).Text;
+
+    public virtual async Task<CompletionResult> GetCompletionWithMediaAsync(
+      List<ChatMessage> messages,
+      string model,
+      CancellationToken ct,
+      IToolExecutor? toolExecutor = null
     )
     {
+      List<byte[]> images = [];
       try
       {
         List<ToolDefinition>? tools = null;
@@ -89,8 +100,9 @@ namespace SlopChat.Services
             foreach(Models.ToolCall toolCall in choice.Message!.ToolCalls!)
             {
               _logger.LogInformation("Executing tool {ToolName}", toolCall.Function.Name);
-              string result = await toolExecutor.ExecuteAsync(toolCall.Function.Name, toolCall.Function.Arguments, ct);
-              workingMessages.Add(ChatMessage.Tool(toolCall.Id, result));
+              ToolExecutionResult result = await toolExecutor.ExecuteAsync(toolCall.Function.Name, toolCall.Function.Arguments, ct);
+              images.AddRange(result.Images);
+              workingMessages.Add(ChatMessage.Tool(toolCall.Id, result.Text));
               executedToolNames.Add(toolCall.Function.Name);
             }
             continue;
@@ -106,7 +118,7 @@ namespace SlopChat.Services
 
           if(!string.IsNullOrEmpty(choice.Message?.Content))
           {
-            return ResolveFinalText(choice.Message, executedToolNames);
+            return new CompletionResult(ResolveFinalText(choice.Message, executedToolNames), images);
           }
 
           if(!string.IsNullOrEmpty(choice.Message?.Reasoning))
@@ -114,7 +126,7 @@ namespace SlopChat.Services
             string? summarized = await TrySummarizeReasoningAsync(workingMessages, choice.Message!.Reasoning!, model, executedToolNames, ct);
             if(summarized is not null)
             {
-              return summarized;
+              return new CompletionResult(summarized, images);
             }
             _logger.LogWarning(
               "Empty model response recovery: in-loop content empty, model={Model}, finishReason={FinishReason}, nativeFinishReason={NativeFinishReason}; using level-{Level}",
@@ -127,7 +139,7 @@ namespace SlopChat.Services
               model, choice.FinishReason, choice.NativeFinishReason, "5 (placeholder)");
           }
 
-          return ResolveFinalText(choice.Message, executedToolNames);
+          return new CompletionResult(ResolveFinalText(choice.Message, executedToolNames), images);
         }
 
         _logger.LogWarning("Reached max tool call iterations ({Max}), forcing final response", maxIterations);
@@ -152,7 +164,7 @@ namespace SlopChat.Services
           _logger.LogWarning(
             "Empty model response recovery: level-2 (force-final, tool_choice=none) produced text, model={Model}, finishReason={FinishReason}, nativeFinishReason={NativeFinishReason}",
             model, level2Choice.FinishReason, level2Choice.NativeFinishReason);
-          return ResolveFinalText(level2Message, executedToolNames);
+          return new CompletionResult(ResolveFinalText(level2Message, executedToolNames), images);
         }
 
         string level45 = !string.IsNullOrEmpty(level2Message?.Reasoning) ? "4 (reasoning)" : "5 (placeholder)";
@@ -160,12 +172,12 @@ namespace SlopChat.Services
           "Empty model response recovery: level-2 returned empty content, model={Model}, finishReason={FinishReason}, nativeFinishReason={NativeFinishReason}; using level-{Level}",
           model, level2Choice.FinishReason, level2Choice.NativeFinishReason, level45);
 
-        return ResolveFinalText(level2Message, executedToolNames);
+        return new CompletionResult(ResolveFinalText(level2Message, executedToolNames), images);
       }
       catch(Exception ex)
       {
         _logger.LogError(ex, "OpenRouter API error");
-        return $"OpenRouter API error: {ex.Message}";
+        return new CompletionResult($"OpenRouter API error: {ex.Message}", images);
       }
     }
 

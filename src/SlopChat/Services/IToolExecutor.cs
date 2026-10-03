@@ -5,7 +5,7 @@ namespace SlopChat.Services {
   public interface IToolExecutor
   {
     Task<IReadOnlyList<ToolDefinition>> GetToolDefinitionsAsync(CancellationToken ct);
-    Task<string> ExecuteAsync(string toolName, string arguments, CancellationToken ct);
+    Task<ToolExecutionResult> ExecuteAsync(string toolName, string arguments, CancellationToken ct);
   }
 
 }
