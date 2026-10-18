@@ -22,6 +22,7 @@ namespace SlopChat.Services
     private static readonly TimeSpan StreamTotalTimeout = TimeSpan.FromMinutes(10);
 
     private const string FallbackToolIcon = "🔧";
+    private const string ReasoningFallbackIcon = "💭";
 
     private static readonly IReadOnlyDictionary<string, string> ToolIcons = new Dictionary<string, string>(StringComparer.Ordinal)
     {
@@ -33,6 +34,8 @@ namespace SlopChat.Services
       ["render_diagram"] = "🔀",
       ["render_world_map"] = "🗺️"
     };
+
+    private static readonly string[] PrefixIcons = [..ToolIcons.Values.Append(FallbackToolIcon).Append(ReasoningFallbackIcon).Distinct().OrderByDescending(icon => icon.Length)];
 
     public OpenRouterClient(HttpClient httpClient, string apiKey, ILogger<OpenRouterClient> logger)
     {
@@ -84,7 +87,8 @@ namespace SlopChat.Services
           {
             Model = model,
             Messages = workingMessages,
-            Tools = tools
+            Tools = tools,
+            Reasoning = new ReasoningOptions { Enabled = true }
           };
 
           ChatCompletionResponse response = await SendStreamingCompletionRequestAsync(request, ct);
@@ -99,7 +103,7 @@ namespace SlopChat.Services
 
           if(isToolCallFinish && hasToolCallsInMessage && toolExecutor is not null)
           {
-            workingMessages.Add(ChatMessage.Assistant(choice.Message!.ToolCalls!));
+            workingMessages.Add(ChatMessage.Assistant(choice.Message!.ToolCalls!, choice.Message.ReasoningDetails));
             foreach(Models.ToolCall toolCall in choice.Message!.ToolCalls!)
             {
               _logger.LogInformation("Executing tool {ToolName}", toolCall.Function.Name);
@@ -155,7 +159,8 @@ namespace SlopChat.Services
           Model = model,
           Messages = level2Messages,
           Tools = tools,
-          ToolChoice = "none"
+          ToolChoice = "none",
+          Reasoning = new ReasoningOptions { Enabled = true }
         };
         ChatCompletionResponse level2Response = await SendStreamingCompletionRequestAsync(level2Request, ct);
         ChatChoice level2Choice = level2Response.Choices.FirstOrDefault()
@@ -457,7 +462,8 @@ namespace SlopChat.Services
           Model = model,
           Messages = newMessages,
           Tools = null,
-          ToolChoice = "none"
+          ToolChoice = "none",
+          Reasoning = new ReasoningOptions { Enabled = true }
         };
 
         ChatCompletionResponse response = await SendStreamingCompletionRequestAsync(request, ct);
@@ -469,8 +475,9 @@ namespace SlopChat.Services
           _logger.LogInformation(
             "Empty model response recovery: summarize-reasoning produced text, model={Model}, finishReason={FinishReason}",
             model, choice!.FinishReason);
+          string sanitized = LlmOutputSanitizer.Sanitize(content);
           string prefix = BuildToolIconPrefix(executedToolNames);
-          return prefix.Length > 0 ? prefix + " " + content : content;
+          return prefix.Length > 0 ? prefix + " " + sanitized : sanitized;
         }
 
         _logger.LogWarning(
@@ -500,16 +507,31 @@ namespace SlopChat.Services
       return sb.ToString();
     }
 
+    internal static string StripToolIconPrefix(string text)
+    {
+      int index = 0;
+      while(TryMatchPrefixIcon(text, index, out int iconLength))
+      {
+        index += iconLength;
+        if(index < text.Length && text[index] == ' ')
+        {
+          index++;
+        }
+      }
+
+      return index == 0 || index == text.Length ? text : text[index..];
+    }
+
     internal static string ResolveFinalText(ChatChoiceMessage? message, IReadOnlyList<string> executedToolNames)
     {
       string text;
       if(!string.IsNullOrEmpty(message?.Content))
       {
-        text = message.Content;
+        text = LlmOutputSanitizer.Sanitize(message.Content);
       }
       else if(!string.IsNullOrEmpty(message?.Reasoning))
       {
-        text = "💭 " + message.Reasoning;
+        text = ReasoningFallbackIcon + " " + LlmOutputSanitizer.Sanitize(message.Reasoning);
       }
       else
       {
@@ -518,6 +540,21 @@ namespace SlopChat.Services
 
       string prefix = BuildToolIconPrefix(executedToolNames);
       return prefix.Length > 0 ? prefix + " " + text : text;
+    }
+
+    private static bool TryMatchPrefixIcon(string text, int index, out int iconLength)
+    {
+      foreach(string icon in PrefixIcons)
+      {
+        if(text.AsSpan(index).StartsWith(icon, StringComparison.Ordinal))
+        {
+          iconLength = icon.Length;
+          return true;
+        }
+      }
+
+      iconLength = 0;
+      return false;
     }
 
     private async Task<ChatCompletionResponse> SendCompletionRequestAsync(ChatCompletionRequest request, CancellationToken ct)

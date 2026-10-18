@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace SlopChat.Models
@@ -14,6 +15,10 @@ namespace SlopChat.Models
     [JsonPropertyName("tool_calls")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public List<ToolCall>? ToolCalls { get; set; }
+
+    [JsonPropertyName("reasoning_details")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<JsonElement>? ReasoningDetails { get; set; }
 
     [JsonPropertyName("tool_call_id")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -45,10 +50,11 @@ namespace SlopChat.Models
       Content = parts
     };
 
-    public static ChatMessage Assistant(List<ToolCall> toolCalls) => new()
+    public static ChatMessage Assistant(List<ToolCall> toolCalls, List<JsonElement>? reasoningDetails = null) => new()
     {
       Role = "assistant",
-      ToolCalls = toolCalls
+      ToolCalls = toolCalls,
+      ReasoningDetails = reasoningDetails
     };
 
     public static ChatMessage Tool(string toolCallId, string content) => new()

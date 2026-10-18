@@ -40,7 +40,7 @@ public class SlopMessageHandler
       {
         CompletionResult completion = await _openRouter.GetCompletionWithMediaAsync(history, _conversationManager.GetModel(chatId), ct, _toolExecutor);
         string response = completion.Text;
-        _conversationManager.AddAssistantMessage(chatId, response);
+        _conversationManager.AddAssistantMessage(chatId, OpenRouterClient.StripToolIconPrefix(response));
         await SendImagesAsync(bot, chatId, message.MessageId, completion.Images, ct);
         await TelegramMessageHelper.SendRichAsync(bot, chatId, response, message.MessageId, _logger, ct);
       }

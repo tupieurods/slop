@@ -72,6 +72,7 @@ namespace SlopChat.Tests
       using JsonDocument body = JsonDocument.Parse(chatRequest.Body!);
       string[] modalities = body.RootElement.GetProperty("modalities").EnumerateArray().Select(m => m.GetString()!).ToArray();
       Assert.Equal(["image", "text"], modalities);
+      Assert.False(body.RootElement.TryGetProperty("reasoning", out _));
       Assert.True(result.HasImage);
       Assert.Equal(ImageBytes, result.ImageBytes);
     }

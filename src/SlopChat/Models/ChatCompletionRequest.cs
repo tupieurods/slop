@@ -29,6 +29,10 @@ namespace SlopChat.Models
     [JsonPropertyName("stream")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? Stream { get; set; }
+
+    [JsonPropertyName("reasoning")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ReasoningOptions? Reasoning { get; set; }
   }
 
   public class UsageOptions

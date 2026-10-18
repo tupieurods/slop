@@ -127,6 +127,34 @@ public class OpenRouterClientResolveFinalTextTests
 
     Assert.Equal("🌐🖼️📅 Done", result);
   }
+
+  [Fact]
+  public void ContentWithStrayThoughtToken_WithToolCalls_StripsTokenBeforePrefix()
+  {
+    var message = new ChatChoiceMessage { Content = "점text" };
+
+    string result = OpenRouterClient.ResolveFinalText(message, ["web_search"]);
+
+    Assert.Equal("🌐 text", result);
+  }
+
+  [Theory]
+  [InlineData("🌐🌐 text", "text")]
+  [InlineData("🖼️ x", "x")]
+  [InlineData("📅🗺️🔧 done", "done")]
+  [InlineData("🌐 🌐🌐 text", "text")]
+  [InlineData("🌐🌐 💭 My thinking", "My thinking")]
+  [InlineData("💭 My thinking", "My thinking")]
+  [InlineData("🌐text", "text")]
+  [InlineData("plain text", "plain text")]
+  [InlineData("text 🌐", "text 🌐")]
+  [InlineData("🌐", "🌐")]
+  [InlineData("🌐 ", "🌐 ")]
+  [InlineData("", "")]
+  public void StripToolIconPrefix_RemovesLeadingIconRun(string input, string expected)
+  {
+    Assert.Equal(expected, OpenRouterClient.StripToolIconPrefix(input));
+  }
 }
 
 }

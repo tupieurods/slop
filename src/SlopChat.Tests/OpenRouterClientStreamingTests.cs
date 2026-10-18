@@ -34,6 +34,28 @@ namespace SlopChat.Tests
     }
 
     [Fact]
+    public async Task GetCompletionAsync_SendsReasoningEnabledInRequestBody()
+    {
+      string? capturedBody = null;
+      var client = CreateClient(request =>
+      {
+        capturedBody = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+        return SseResponse("""
+          data: {"choices":[{"delta":{"content":"hi"},"finish_reason":"stop"}]}
+
+          data: [DONE]
+
+          """);
+      });
+
+      await client.GetCompletionAsync([ChatMessage.User("hello")], Model, CancellationToken.None);
+
+      Assert.NotNull(capturedBody);
+      using JsonDocument body = JsonDocument.Parse(capturedBody);
+      Assert.True(body.RootElement.GetProperty("reasoning").GetProperty("enabled").GetBoolean());
+    }
+
+    [Fact]
     public async Task GetCompletionAsync_SseResponse_ReturnsAssembledText()
     {
       var client = CreateClient(_ => SseResponse("""
@@ -107,6 +129,54 @@ namespace SlopChat.Tests
         .Single(m => m.GetProperty("role").GetString() == "tool");
       Assert.Equal("call_1", toolMessage.GetProperty("tool_call_id").GetString());
       Assert.Equal("search results", toolMessage.GetProperty("content").GetString());
+    }
+
+    [Fact]
+    public async Task GetCompletionWithMediaAsync_ToolCallWithReasoningDetails_EchoesDetailsOnNextRequest()
+    {
+      List<string> requestBodies = [];
+      string[] responses =
+      [
+        """
+        data: {"choices":[{"delta":{"reasoning_details":[{"type":"reasoning.text","text":"Need to ","index":0}]}}]}
+
+        data: {"choices":[{"delta":{"reasoning_details":[{"type":"reasoning.text","text":"search","signature":"sig","index":0}]}}]}
+
+        data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"web_search","arguments":"{}"}}]},"finish_reason":"tool_calls"}]}
+
+        data: [DONE]
+
+        """,
+        """
+        data: {"choices":[{"delta":{"content":"done"},"finish_reason":"stop"}]}
+
+        data: [DONE]
+
+        """
+      ];
+      var client = CreateClient(request =>
+      {
+        requestBodies.Add(request.Content!.ReadAsStringAsync().GetAwaiter().GetResult());
+        return SseResponse(responses[requestBodies.Count - 1]);
+      });
+      var toolExecutor = new StubToolExecutor(new ToolExecutionResult("results", []));
+
+      await client.GetCompletionWithMediaAsync([ChatMessage.User("q")], Model, CancellationToken.None, toolExecutor);
+
+      Assert.Equal(2, requestBodies.Count);
+      using JsonDocument firstBody = JsonDocument.Parse(requestBodies[0]);
+      Assert.DoesNotContain(
+        firstBody.RootElement.GetProperty("messages").EnumerateArray(),
+        m => m.TryGetProperty("reasoning_details", out _)
+      );
+      using JsonDocument secondBody = JsonDocument.Parse(requestBodies[1]);
+      JsonElement assistantMessage = secondBody.RootElement.GetProperty("messages")
+        .EnumerateArray()
+        .Single(m => m.GetProperty("role").GetString() == "assistant");
+      JsonElement detail = Assert.Single(assistantMessage.GetProperty("reasoning_details").EnumerateArray());
+      Assert.Equal("reasoning.text", detail.GetProperty("type").GetString());
+      Assert.Equal("Need to search", detail.GetProperty("text").GetString());
+      Assert.Equal("sig", detail.GetProperty("signature").GetString());
     }
 
     private static OpenRouterClient CreateClient(Func<HttpRequestMessage, HttpResponseMessage> handler)

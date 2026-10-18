@@ -34,6 +34,7 @@
 | `OpenRouterStreamReader` | `Services/OpenRouterStreamReader.cs` | Parses OpenRouter SSE chat-completion streams (skips keep-alive comments, merges content/reasoning/tool-call deltas, 90 s idle timeout + 10 min total cap, mid-stream errors) into a single `ChatCompletionResponse` |
 | `OpenRouterVideoClient` | `Services/OpenRouterVideoClient.cs` | HTTP client for OpenRouter video generation API (submit job, poll until completed, download bytes) |
 | `McpToolService` | `Services/McpToolService.cs` | MCP tool provider (implements `IToolExecutor`); returns tool text plus decoded image blocks (`ToolExecutionResult`). Images collected during the tool loop (`OpenRouterClient.GetCompletionWithMediaAsync`) are sent as photos by `SlopMessageHandler` |
+| `LlmOutputSanitizer` | `Services/LlmOutputSanitizer.cs` | Cleans model output before it is sent/stored: strips the stray leading `점` thought-channel token, unwraps currency wrapped in inline math (`$\$0.05$` → `\$0.05`) |
 | `MarkdownConverter` | `Services/MarkdownConverter.cs` | Converts LLM markdown → plain text + Telegram `MessageEntity` list (fallback path when a rich message is rejected) |
 | `TelegramMessageHelper` | `Services/TelegramMessageHelper.cs` | Rich message sending (`SendRichAsync`, falls back to the legacy path on API errors) and legacy chunked sending with entity-aware splitting (`SendChunkedAsync`) |
 | `RichMarkdownSplitter` | `Services/RichMarkdownSplitter.cs` | Splits markdown into rich-message-sized chunks at blank-line boundaries outside code fences |

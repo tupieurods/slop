@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using SlopChat.Models;
 
 namespace SlopChat.Services
@@ -90,6 +91,7 @@ namespace SlopChat.Services
     {
       private readonly StringBuilder _content = new();
       private readonly StringBuilder _reasoning = new();
+      private readonly ReasoningDetailsBuilder _reasoningDetails = new();
       private readonly List<ToolCallBuilder> _toolCalls = [];
       private readonly Dictionary<int, ToolCallBuilder> _toolCallsByIndex = [];
       private string? _id;
@@ -122,6 +124,10 @@ namespace SlopChat.Services
 
           _content.Append(delta.Content);
           _reasoning.Append(delta.Reasoning);
+          foreach(JsonElement detail in delta.ReasoningDetails ?? [])
+          {
+            _reasoningDetails.Add(detail);
+          }
 
           if(delta.ToolCalls is null)
           {
@@ -146,6 +152,7 @@ namespace SlopChat.Services
           Role = "assistant",
           Content = _content.Length > 0 ? _content.ToString() : null,
           Reasoning = _reasoning.Length > 0 ? _reasoning.ToString() : null,
+          ReasoningDetails = _reasoningDetails.Build(),
           ToolCalls = toolCalls
         };
 
@@ -178,6 +185,75 @@ namespace SlopChat.Services
 
         builder.Add(delta);
       }
+    }
+
+    private sealed class ReasoningDetailsBuilder
+    {
+      private readonly List<JsonObject> _details = [];
+      private readonly Dictionary<int, JsonObject> _detailsByIndex = [];
+      private static readonly HashSet<string> ConcatenatedFields = ["text", "summary"];
+
+      public void Add(JsonElement fragment)
+      {
+        if(fragment.ValueKind != JsonValueKind.Object)
+        {
+          return;
+        }
+
+        JsonObject incoming = JsonObject.Create(fragment)!;
+        int? index = incoming["index"] is JsonValue indexValue && indexValue.TryGetValue(out int i) ? i : null;
+        if(index is null)
+        {
+          _details.Add(incoming);
+          return;
+        }
+
+        if(!_detailsByIndex.TryGetValue(index.Value, out JsonObject? existing) || IsDifferentEntry(existing, incoming))
+        {
+          _details.Add(incoming);
+          _detailsByIndex[index.Value] = incoming;
+          return;
+        }
+
+        Merge(existing, incoming);
+      }
+
+      public List<JsonElement>? Build() => _details.Count > 0
+        ? [.._details.Select(d => JsonSerializer.SerializeToElement(d))]
+        : null;
+
+      private static bool IsDifferentEntry(JsonObject existing, JsonObject incoming)
+      {
+        string? incomingType = GetString(incoming, "type");
+        if(incomingType is not null && incomingType != GetString(existing, "type"))
+        {
+          return true;
+        }
+
+        string? incomingId = GetString(incoming, "id");
+        string? existingId = GetString(existing, "id");
+        return !string.IsNullOrEmpty(incomingId) && !string.IsNullOrEmpty(existingId) && incomingId != existingId;
+      }
+
+      private static void Merge(JsonObject existing, JsonObject incoming)
+      {
+        foreach((string key, JsonNode? value) in incoming)
+        {
+          if(ConcatenatedFields.Contains(key) && GetString(existing, key) is { } current && GetString(incoming, key) is { } addition)
+          {
+            existing[key] = current + addition;
+            continue;
+          }
+
+          if(value is not null || !existing.ContainsKey(key))
+          {
+            existing[key] = value?.DeepClone();
+          }
+        }
+      }
+
+      private static string? GetString(JsonObject obj, string key)
+        => obj[key] is JsonValue value && value.TryGetValue(out string? s) ? s : null;
     }
 
     private sealed class ToolCallBuilder

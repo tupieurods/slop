@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using SlopChat.Models;
 using SlopChat.Services;
 
@@ -54,6 +55,88 @@ namespace SlopChat.Tests
       ChatChoiceMessage message = response.Choices[0].Message!;
       Assert.Equal("Thinking...", message.Reasoning);
       Assert.Null(message.Content);
+    }
+
+    [Fact]
+    public async Task ReadAsync_ReasoningDetailsSplitOverChunks_MergesByIndex()
+    {
+      const string sse = """
+        data: {"choices":[{"delta":{"reasoning_details":[{"type":"reasoning.text","text":"Thin","format":"google-gemini-v1","index":0}]}}]}
+
+        data: {"choices":[{"delta":{"reasoning_details":[{"type":"reasoning.text","text":"king","signature":null,"index":0}]}}]}
+
+        data: {"choices":[{"delta":{"reasoning_details":[{"type":"reasoning.text","signature":"sig","index":0}]}}]}
+
+        data: {"choices":[{"delta":{"reasoning_details":[{"type":"reasoning.encrypted","data":"abc","index":1}]},"finish_reason":"tool_calls"}]}
+
+        data: [DONE]
+
+        """;
+
+      ChatCompletionResponse response = await ReadAsync(sse);
+
+      List<JsonElement> details = response.Choices[0].Message!.ReasoningDetails!;
+      Assert.Equal(2, details.Count);
+      Assert.Equal("reasoning.text", details[0].GetProperty("type").GetString());
+      Assert.Equal("Thinking", details[0].GetProperty("text").GetString());
+      Assert.Equal("sig", details[0].GetProperty("signature").GetString());
+      Assert.Equal("google-gemini-v1", details[0].GetProperty("format").GetString());
+      Assert.Equal(0, details[0].GetProperty("index").GetInt32());
+      Assert.Equal("reasoning.encrypted", details[1].GetProperty("type").GetString());
+      Assert.Equal("abc", details[1].GetProperty("data").GetString());
+    }
+
+    [Fact]
+    public async Task ReadAsync_ReasoningDetailsSameIndexDifferentIds_KeepsSeparateEntries()
+    {
+      const string sse = """
+        data: {"choices":[{"delta":{"reasoning_details":[{"type":"reasoning.text","id":"r1","text":"First","index":0}]}}]}
+
+        data: {"choices":[{"delta":{"reasoning_details":[{"type":"reasoning.text","id":"r2","text":"Second","index":0}]},"finish_reason":"stop"}]}
+
+        data: [DONE]
+
+        """;
+
+      ChatCompletionResponse response = await ReadAsync(sse);
+
+      List<JsonElement> details = response.Choices[0].Message!.ReasoningDetails!;
+      Assert.Equal(2, details.Count);
+      Assert.Equal("First", details[0].GetProperty("text").GetString());
+      Assert.Equal("Second", details[1].GetProperty("text").GetString());
+    }
+
+    [Fact]
+    public async Task ReadAsync_ReasoningDetailsEncryptedData_LaterValueOverwrites()
+    {
+      const string sse = """
+        data: {"choices":[{"delta":{"reasoning_details":[{"type":"reasoning.encrypted","data":"old","index":0}]}}]}
+
+        data: {"choices":[{"delta":{"reasoning_details":[{"type":"reasoning.encrypted","data":"new","index":0}]},"finish_reason":"stop"}]}
+
+        data: [DONE]
+
+        """;
+
+      ChatCompletionResponse response = await ReadAsync(sse);
+
+      JsonElement detail = Assert.Single(response.Choices[0].Message!.ReasoningDetails!);
+      Assert.Equal("new", detail.GetProperty("data").GetString());
+    }
+
+    [Fact]
+    public async Task ReadAsync_NoReasoningDetails_LeavesReasoningDetailsNull()
+    {
+      const string sse = """
+        data: {"choices":[{"delta":{"content":"hi"},"finish_reason":"stop"}]}
+
+        data: [DONE]
+
+        """;
+
+      ChatCompletionResponse response = await ReadAsync(sse);
+
+      Assert.Null(response.Choices[0].Message!.ReasoningDetails);
     }
 
     [Fact]
